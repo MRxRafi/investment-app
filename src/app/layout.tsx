@@ -21,7 +21,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${outfit.variable} font-sans`}>
         <div className="flex min-h-screen">
           {/* Sidebar */}
-          <aside className="w-64 border-r border-white/10 glass hidden lg:flex flex-col p-6 space-y-8">
+          <aside className="w-64 border-r border-white/10 glass hidden lg:flex flex-col p-6 space-y-8 print:hidden">
             <div className="flex items-center space-x-2 px-2">
               <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-600/20">
                 P
@@ -48,8 +48,8 @@ export default function RootLayout({
           </aside>
 
           {/* Main Content */}
-          <main className="flex-1 overflow-y-auto">
-            <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 glass sticky top-0 z-50">
+          <main className="flex-1 overflow-y-auto print:overflow-visible">
+            <header className="h-16 border-b border-white/5 flex items-center justify-between px-8 glass sticky top-0 z-50 print:hidden">
               <div className="flex items-center lg:hidden">
                  <span className="text-xl font-bold">Portfolio</span>
               </div>
@@ -64,7 +64,7 @@ export default function RootLayout({
               </div>
             </header>
             
-            <div className="p-8 max-w-7xl mx-auto">
+            <div className="p-8 max-w-7xl mx-auto print:p-0 print:max-w-none">
               {children}
             </div>
           </main>

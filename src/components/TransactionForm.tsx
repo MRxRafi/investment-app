@@ -5,7 +5,7 @@ import { AssetType, TransactionType } from '@/types';
 import { Plus, X } from 'lucide-react';
 
 export function TransactionForm({ onClose }: { onClose: () => void }) {
-  const [formData, setFormData] = useState({
+  const [formData] = useState({
     ticker: '',
     type: 'Buy' as TransactionType,
     quantity: '',

@@ -2,7 +2,8 @@ import yahooFinance from 'yahoo-finance2';
 
 export async function getPrice(ticker: string) {
   try {
-    const result = await yahooFinance.quote(ticker);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result: any = await yahooFinance.quote(ticker);
     return {
       price: result.regularMarketPrice,
       currency: result.currency,

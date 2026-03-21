@@ -1,36 +1,17 @@
 "use client";
 
-import { useRef } from 'react';
 import { SummaryCard } from '@/components/SummaryCard';
 import { FileText, Download, Printer, Share2, Calendar } from 'lucide-react';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function ReportsPage() {
-  const reportRef = useRef<HTMLDivElement>(null);
-
-  const exportPDF = async () => {
-    if (!reportRef.current) return;
-    
-    const canvas = await html2canvas(reportRef.current, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#09090b', // Zinc-950
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Portfolio_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+  const exportPDF = () => {
+    window.print();
   };
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="print:hidden space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-4xl font-bold font-outfit mb-2">Reportes</h1>
           <p className="text-zinc-400">Genera informes detallados para impresión o análisis offline.</p>
@@ -61,19 +42,18 @@ export default function ReportsPage() {
             </div>
           </div>
         </div>
-        {/* Ad-hoc report generators could go here */}
+        </div>
       </div>
 
       {/* Report Preview / Printable Area */}
-      <div className="border border-white/10 rounded-2xl overflow-hidden bg-black shadow-2xl">
-        <div className="bg-zinc-900/50 p-4 border-b border-white/5 flex justify-between items-center">
+      <div className="border border-white/10 rounded-2xl overflow-hidden bg-black shadow-2xl print:border-none print:shadow-none print:bg-transparent">
+        <div className="bg-zinc-900/50 p-4 border-b border-white/5 flex justify-between items-center print:hidden">
             <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Vista Previa de Impresión (A4)</span>
             <span className="text-xs text-zinc-500">1 de 1</span>
         </div>
         
         <div 
-          ref={reportRef}
-          className="bg-zinc-950 p-12 text-zinc-50 max-w-[800px] mx-auto min-h-[1100px]"
+          className="bg-[#09090b] p-12 text-zinc-50 max-w-[800px] mx-auto min-h-[1100px] print:p-0 print:min-h-0 print:bg-transparent"
           id="printable-report"
         >
           <div className="flex justify-between items-start border-b border-white/10 pb-8 mb-8">
