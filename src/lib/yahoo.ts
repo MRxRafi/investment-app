@@ -1,17 +1,44 @@
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+const yahooFinance = new YahooFinance();
+
+export async function getExchangeRate(from: string, to: string): Promise<number> {
+  if (from === to) return 1;
+  const pair = `${from}${to}=X`;
+  try {
+    const result: any = await yahooFinance.quote(pair);
+    return result?.regularMarketPrice || 1;
+  } catch (error) {
+    console.warn(`Could not fetch exchange rate for ${pair}, using 1:`, error);
+    return 1;
+  }
+}
 
 export async function getPrice(ticker: string) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result: any = await yahooFinance.quote(ticker);
+    if (!result) {
+      console.warn(`No price data found for ${ticker}`);
+      return null;
+    }
+
+    let price = result.regularMarketPrice;
+    const currency = result.currency;
+
+    if (currency && currency !== "EUR") {
+      const rate = await getExchangeRate(currency, "EUR");
+      price = price * rate;
+    }
+
     return {
-      price: result.regularMarketPrice,
-      currency: result.currency,
+      price,
+      currency: "EUR", // We always return EUR now
+      originalCurrency: currency,
       change: result.regularMarketChange,
       changePercent: result.regularMarketChangePercent
     };
   } catch (error) {
-    console.error(`Error fetching price for ${ticker}:`, error);
+    console.error(`YAHOO_ERROR for ${ticker}:`, error);
     return null;
   }
 }

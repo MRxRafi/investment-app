@@ -1,36 +1,48 @@
-export type AssetType = 'Stock' | 'ETF' | 'Fund' | 'Crypto' | 'Cash';
-export type TransactionType = 'Buy' | 'Sell' | 'Dividend' | 'Deposit' | 'Withdrawal';
-
 export interface Asset {
   id: string;
   name: string;
-  ticker?: string;
-  isin?: string;
-  asset_type: AssetType;
-  sector?: string;
-  country?: string;
-  created_at: string;
+  ticker: string;
+  asset_type: string;
+  current_price?: number;
+  tipo?: string;
 }
 
 export interface Transaction {
   id: string;
   asset_id: string;
-  transaction_type: TransactionType;
+  transaction_type: 'Buy' | 'Sell';
   quantity: number;
   price_per_unit: number;
   fee: number;
-  transaction_date: string;
-  currency: string;
-  notes?: string;
+  date: string;
 }
 
-export interface PortfolioPosition {
-  asset: Asset;
+export interface AssetStats {
+  name: string;
+  ticker: string;
+  invested: number;
   quantity: number;
-  average_price: number;
-  current_price?: number;
-  total_invested: number;
-  current_value?: number;
-  pnl?: number;
-  pnl_percent?: number;
+  currentPrice: number;
+  currentValue: number;
+  pnl: number;
+  pnlPercent: number;
+}
+
+export interface DashboardStats {
+  totalValue: number;
+  totalInvested: number;
+  totalPnL: number;
+  totalPnLPercent: number;
+  liquidity: number;
+  allocation: { name: string; value: number }[];
+  assetAllocation: { name: string; value: number }[];
+  performanceData: PerformancePoint[];
+  bestAsset: AssetStats | null;
+  topPositions: AssetStats[];
+}
+
+export interface PerformancePoint {
+  date: string;
+  value: number;
+  benchmark: number;
 }

@@ -48,9 +48,10 @@ export function PerformanceChart({ data }: { data: PerformanceData[] }) {
             axisLine={false} 
             tickLine={false} 
             tick={{ fill: '#71717a', fontSize: 12 }}
-            tickFormatter={(value) => `${value}€`}
+            tickFormatter={(value) => `${Math.round(value)}€`}
           />
           <Tooltip 
+            formatter={(value: any) => [`${Math.round(value)}€`, 'Valor']}
             contentStyle={{ backgroundColor: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
             itemStyle={{ fontSize: '13px' }}
           />
@@ -103,6 +104,7 @@ export function AssetAllocationChart({ data }: { data: AllocationData[] }) {
             ))}
           </Pie>
           <Tooltip 
+            formatter={(value: any) => [`${value}%`, 'Porcentaje']}
             contentStyle={{ backgroundColor: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
           />
         </PieChart>
