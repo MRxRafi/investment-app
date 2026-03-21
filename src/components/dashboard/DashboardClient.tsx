@@ -17,7 +17,7 @@ export function DashboardClient() {
     async function fetchData() {
       try {
         setLoading(true);
-        
+
         // 1. Fetch Assets and Transactions
         const { data: assetsData, error: assetsError } = await supabase.from('assets').select('*');
         const { data: txData, error: txError } = await supabase.from('transactions').select('*');
@@ -31,7 +31,7 @@ export function DashboardClient() {
         // We'll collect all unique tickers and fetch them in parallel
         const tickers = Array.from(new Set(assets.map(a => a.ticker).filter(t => t && t !== '---')));
         const priceMap: Record<string, number> = {};
-        
+
         await Promise.all(tickers.map(async (ticker) => {
           try {
             const res = await fetch(`/api/price?ticker=${ticker}`);
@@ -53,10 +53,10 @@ export function DashboardClient() {
           const startDate = new Date('2025-10-06');
           const today = new Date();
           const days = Math.ceil(Math.abs(today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          
+
           const benchmarkRes = await fetch(`/api/history?ticker=IWDA.AS&days=${days}`);
           const benchmarkHistory = await benchmarkRes.json();
-          
+
           if (Array.isArray(benchmarkHistory)) {
             const totalValue = assetStats.reduce((acc, s) => acc + s.currentValue, 0);
             const firstPrice = benchmarkHistory[0]?.close || 1;
@@ -64,7 +64,7 @@ export function DashboardClient() {
               const growth = day.close / firstPrice;
               return {
                 date: new Date(day.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' }),
-                value: Math.round(totalValue * (0.95 + (growth - 1) * 0.8)), 
+                value: Math.round(totalValue * (0.95 + (growth - 1) * 0.8)),
                 benchmark: Math.round(totalValue * growth)
               };
             });
@@ -110,7 +110,7 @@ export function DashboardClient() {
       </header>
 
       <StatsGrid stats={stats} />
-      
+
       <AllocationSection stats={stats} />
 
       <TopPositions positions={stats.topPositions} />
