@@ -2,9 +2,8 @@ export interface Asset {
   id: string;
   name: string;
   ticker: string;
-  asset_type: string;
   current_price?: number;
-  tipo?: string;
+  tipo: string;
 }
 
 export interface Transaction {
@@ -39,6 +38,8 @@ export interface DashboardStats {
   performanceData: PerformancePoint[];
   bestAsset: AssetStats | null;
   topPositions: AssetStats[];
+  allPositions: AssetStats[];
+  allAssetAllocation: { name: string; value: number }[];
 }
 
 export interface PerformancePoint {

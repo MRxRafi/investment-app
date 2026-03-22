@@ -14,12 +14,12 @@ Una vez creada la estructura, puedes insertar tus datos actuales ejecutando este
 
 ```sql
 -- Insertar Activos base
-INSERT INTO assets (name, ticker, asset_type) VALUES 
+INSERT INTO assets (name, ticker, tipo) VALUES 
 ('iShares MSCI World ETF', 'URTH', 'ETF'),
-('NVIDIA Corporation', 'NVDA', 'Stock'),
-('Apple Inc.', 'AAPL', 'Stock'),
+('NVIDIA Corporation', 'NVDA', 'Acciones'),
+('Apple Inc.', 'AAPL', 'Acciones'),
 ('Vusa S&P 500', 'VUSA', 'ETF'),
-('Bitcoin', 'BTC', 'Crypto');
+('Bitcoin', 'BTC', 'Cripto');
 
 -- Insertar Transacciones iniciales (Ejemplo basado en tu Excel)
 -- NOTA: Esto es una simplificación, la app te permitirá añadir las reales.

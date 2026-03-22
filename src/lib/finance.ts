@@ -21,7 +21,7 @@ export function calculateAssetStats(assets: Asset[], transactions: Transaction[]
       }
     });
 
-    const currentPrice = asset.asset_type === 'Cash' ? 1.0 : (currentPrices[asset.ticker] || Number(asset.current_price || 0));
+    const currentPrice = asset.tipo === 'Liquidez' ? 1.0 : (currentPrices[asset.ticker] || Number(asset.current_price || 0));
     const currentValue = qty * currentPrice;
     const pnl = currentValue - invested;
     const pnlPercent = invested !== 0 ? (pnl / invested) * 100 : 0;
@@ -46,7 +46,7 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
   const totalPnLPercent = totalInvested !== 0 ? (totalPnL / totalInvested) * 100 : 0;
 
   const liquidity = assetStats
-    .filter(s => assets.find(a => s.ticker === a.ticker)?.asset_type === 'Cash')
+    .filter(s => assets.find(a => s.ticker === a.ticker)?.tipo === 'Liquidez')
     .reduce((acc, s) => acc + s.currentValue, 0);
 
   // Allocation by Tipo
@@ -54,7 +54,7 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
   assets.forEach(a => {
     const s = assetStats.find(stat => stat.ticker === a.ticker);
     if (s) {
-      const key = (a as any).tipo || 'Otros';
+      const key = a.tipo || 'Otros';
       tipoTotals[key] = (tipoTotals[key] || 0) + s.currentValue;
     }
   });
@@ -66,24 +66,26 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     }))
     .sort((a, b) => b.value - a.value);
 
-  // Allocation by Asset
-  const assetAllocation = assetStats
+  // Allocation by Asset (Individual)
+  const allAssetAllocation = assetStats
     .filter(s => s.currentValue > 1)
     .map(s => ({
       name: s.name, 
       value: totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0
     }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8);
+    .sort((a, b) => b.value - a.value);
+
+  const assetAllocation = allAssetAllocation.slice(0, 8);
 
   const bestAsset = [...assetStats]
     .filter(s => s.currentValue > 1)
     .sort((a, b) => b.pnlPercent - a.pnlPercent)[0] || null;
 
-  const topPositions = assetStats
+  const allPositions = assetStats
     .filter(s => s.currentValue > 1) 
-    .sort((a, b) => b.currentValue - a.currentValue)
-    .slice(0, 5);
+    .sort((a, b) => b.currentValue - a.currentValue);
+
+  const topPositions = allPositions.slice(0, 5);
 
   return {
     totalValue,
@@ -95,6 +97,8 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     assetAllocation,
     performanceData,
     bestAsset,
-    topPositions
+    topPositions,
+    allPositions,
+    allAssetAllocation
   };
 }

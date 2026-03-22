@@ -3,34 +3,36 @@
 @theme {
   --font-inter: var(--font-inter);
   --font-outfit: var(--font-outfit);
+  --font-plus-jakarta: var(--font-plus-jakarta);
+  
+  --color-brand-yellow: #facc15;
+  --color-brand-black: #09090b;
+  --color-brand-zinc: #18181b;
 }
 
 @layer base {
   body {
-    background-color: #050507;
-    color: #e2e8f0;
+    background-color: #09090b; /* Zinc 950 approx */
+    color: #fafafa;
     -webkit-font-smoothing: antialiased;
     min-height: 100vh;
-    background-image: 
-      radial-gradient(at 0% 0%, rgba(37, 99, 235, 0.05) 0, transparent 50%), 
-      radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.05) 0, transparent 50%);
   }
 }
 
 @utility glass {
-  @apply bg-zinc-900/60 backdrop-blur-xl border border-white/10 shadow-xl rounded-2xl;
+  @apply bg-zinc-900/40 border border-white/5 shadow-sm rounded-xl backdrop-blur-md;
 }
 
 @utility glass-card {
-  @apply bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-[2rem] p-8 shadow-2xl transition-all duration-300;
+  @apply bg-zinc-900/60 border border-white/5 rounded-2xl p-6 shadow-sm transition-all duration-300 backdrop-blur-sm;
   
   &:hover {
-    @apply border-white/10 bg-zinc-900/60 transform -translate-y-1;
+    @apply border-white/10 shadow-lg bg-zinc-900/80 -translate-y-0.5;
   }
 }
 
-@utility rounded-pill {
-  @apply rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider;
+@utility section-container {
+  @apply p-4 md:p-8 max-w-7xl mx-auto;
 }
 
 @keyframes fade-in {
@@ -44,16 +46,16 @@
 }
 
 .animate-fade-in {
-  animation: fade-in 0.6s ease-out forwards;
+  animation: fade-in 0.4s ease-out forwards;
 }
 
 .animate-slide-up {
-  animation: slide-up 0.6s ease-out forwards;
+  animation: slide-up 0.4s ease-out forwards;
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -61,5 +63,5 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-800 rounded-full hover:bg-zinc-700 transition-colors;
+  @apply bg-zinc-800 rounded-full hover:bg-zinc-700;
 }
