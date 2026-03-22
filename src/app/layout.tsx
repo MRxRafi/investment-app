@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileNav } from "@/components/layout/MobileNav";
+import { MobileMenuTrigger } from "@/components/layout/MobileMenuTrigger";
 import { NavProvider } from "@/components/layout/NavContext";
 import "./globals.css";
 
@@ -36,7 +37,8 @@ export default function RootLayout({
             {/* Main Content */}
             <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
               <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 md:px-8 bg-zinc-950/20 sticky top-0 z-40 backdrop-blur-md print:hidden">
-                <div className="flex items-center lg:hidden">
+                <div className="flex items-center lg:hidden space-x-3">
+                  <MobileMenuTrigger />
                   <span className="text-lg font-bold font-outfit text-yellow-500 tracking-tight">ElPortafolio</span>
                 </div>
                 <div className="flex-1" />
@@ -59,5 +61,4 @@ export default function RootLayout({
     </html>
   );
 }
-
 

@@ -9,11 +9,8 @@ export function AllocationSection({ stats }: { stats: DashboardStats }) {
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
           <div className="space-y-1">
             <h3 className="text-xl md:text-2xl font-black font-outfit tracking-tighter text-white uppercase italic">
-              Historical <span className="text-yellow-500">Alpha</span>
+              Cartera vs <span className="text-yellow-500">MSCI World</span>
             </h3>
-            <p className="text-[10px] md:text-sm text-zinc-500 font-bold tracking-[0.2em] uppercase font-plus-jakarta">
-              Performance vs Benchmark Index
-            </p>
           </div>
           <div className="flex items-center space-x-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 font-plus-jakarta bg-black/40 px-4 py-2 rounded-lg border border-white/5">
             <div className="flex items-center">

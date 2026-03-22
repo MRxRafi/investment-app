@@ -1,8 +1,15 @@
 import { Asset, Transaction, AssetStats, DashboardStats, PerformancePoint } from '@/types';
 
 export function calculateAssetStats(assets: Asset[], transactions: Transaction[], currentPrices: Record<string, number>): AssetStats[] {
+  // Pre-group transactions by asset_id for O(1) lookup during mapping
+  const txByAsset = new Map<string, Transaction[]>();
+  transactions.forEach(t => {
+    if (!txByAsset.has(t.asset_id)) txByAsset.set(t.asset_id, []);
+    txByAsset.get(t.asset_id)!.push(t);
+  });
+
   return assets.map(asset => {
-    const assetTx = transactions.filter(t => t.asset_id === asset.id);
+    const assetTx = txByAsset.get(asset.id) || [];
     
     let qty = 0;
     let invested = 0;

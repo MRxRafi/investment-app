@@ -10,14 +10,14 @@ export function TopPositions({ positions }: { positions: AssetStats[] }) {
           Ver todas
         </Link>
       </div>
-      <div className="overflow-x-auto -mx-1">
+      <div className="overflow-x-auto pb-2">
         <table className="w-full text-left">
           <thead>
             <tr className="text-xs text-zinc-500 uppercase tracking-widest border-b border-white/5">
-              <th className="pb-4 pt-1 font-semibold px-2">Activo</th>
-              <th className="pb-4 pt-1 font-semibold text-right px-2">Invertido</th>
-              <th className="pb-4 pt-1 font-semibold text-right px-2">Valor actual</th>
-              <th className="pb-4 pt-1 font-semibold text-right px-2">Retorno</th>
+              <th className="pb-4 pt-1 font-semibold pl-1 pr-4">Activo</th>
+              <th className="pb-4 pt-1 font-semibold text-right px-4 hidden lg:table-cell">Invertido</th>
+              <th className="pb-4 pt-1 font-semibold text-right px-4 hidden sm:table-cell">Valor actual</th>
+              <th className="pb-4 pt-1 font-semibold text-right pr-1 pl-4">Retorno</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
@@ -49,14 +49,14 @@ function AssetRow({ name, ticker, invested, current, pnl, isPositive }: {
 }) {
   return (
     <tr className="group hover:bg-white/[0.02] transition-colors">
-      <td className="py-4 px-2">
-        <div className="font-medium text-zinc-100 group-hover:text-white transition-colors">{name}</div>
+      <td className="py-4 pl-1 pr-4 max-w-[150px] sm:max-w-[200px] lg:max-w-none">
+        <div className="font-medium text-zinc-100 group-hover:text-white transition-colors truncate" title={name}>{name}</div>
         <div className="text-xs text-zinc-500 font-mono tracking-tighter uppercase">{ticker}</div>
       </td>
-      <td className="py-4 px-2 text-right text-zinc-400 font-mono text-sm">{invested}</td>
-      <td className="py-4 px-2 text-right text-zinc-100 font-bold font-mono text-sm">{current}</td>
-      <td className="py-4 px-2 text-right">
-        <span className={`${isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'} text-xs px-2.5 py-1 rounded-full font-bold shadow-sm inline-block min-w-[50px]`}>
+      <td className="py-4 px-4 text-right text-zinc-400 font-mono text-sm hidden lg:table-cell">{invested}</td>
+      <td className="py-4 px-4 text-right text-zinc-100 font-bold font-mono text-sm hidden sm:table-cell">{current}</td>
+      <td className="py-4 pr-1 pl-4 text-right">
+        <span className={`${isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'} text-xs px-2.5 py-1 rounded-full font-bold shadow-sm inline-block min-w-[50px] whitespace-nowrap`}>
           {pnl}
         </span>
       </td>

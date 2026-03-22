@@ -26,25 +26,25 @@ export function Sidebar() {
         <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-[0.2em] mb-4 px-3 font-plus-jakarta">Main Terminal</div>
         <NavLink 
           href="/" 
-          label="Overview" 
+          label="Dashboard" 
           icon={<LayoutDashboard className="w-5 h-5" />} 
           active={pathname === "/"} 
         />
         <NavLink 
           href="/assets" 
-          label="Asset Matrix" 
+          label="Activos" 
           icon={<PieChart className="w-5 h-5" />} 
           active={pathname === "/assets"} 
         />
         <NavLink 
           href="/transactions" 
-          label="Ledger" 
+          label="Transacciones" 
           icon={<History className="w-5 h-5" />} 
           active={pathname === "/transactions"} 
         />
         <NavLink 
           href="/reports" 
-          label="Intelligence" 
+          label="Reportes" 
           icon={<FileText className="w-5 h-5" />} 
           active={pathname === "/reports"} 
         />

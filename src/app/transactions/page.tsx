@@ -86,7 +86,7 @@ export default function TransactionsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl md:text-4xl font-black font-outfit tracking-tighter text-white uppercase italic">
-            Portfolio <span className="text-yellow-500">Ledger</span>
+            Mis <span className="text-yellow-500">Transacciones</span>
           </h1>
           <p className="text-zinc-500 text-sm font-medium font-plus-jakarta tracking-wide">
             Historial detallado de transacciones y estados de cuenta.

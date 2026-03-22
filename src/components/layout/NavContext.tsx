@@ -13,8 +13,8 @@ const NavContext = createContext<NavContextType | undefined>(undefined);
 export function NavProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const toggle = () => setIsOpen((prev) => !prev);
-  const close = () => setIsOpen(false);
+  const toggle = React.useCallback(() => setIsOpen((prev) => !prev), []);
+  const close = React.useCallback(() => setIsOpen(false), []);
 
   return (
     <NavContext.Provider value={{ isOpen, toggle, close }}>

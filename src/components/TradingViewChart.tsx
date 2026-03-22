@@ -75,6 +75,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                     top: 0.1,
                     bottom: 0.1,
                 },
+                alignLabels: true,
             },
             timeScale: {
                 borderVisible: false,

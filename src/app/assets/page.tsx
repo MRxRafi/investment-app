@@ -118,7 +118,7 @@ export default function AssetsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div className="space-y-1">
           <h1 className="text-3xl md:text-4xl font-black font-outfit tracking-tighter text-white uppercase italic">
-            Asset <span className="text-yellow-500">Matrix</span>
+            Mis <span className="text-yellow-500">Activos</span>
           </h1>
           <p className="text-zinc-500 text-sm font-medium font-plus-jakarta tracking-wide">
             Distribución estratégica y métricas individuales de rendimiento.
@@ -135,7 +135,7 @@ export default function AssetsPage() {
 
       {showAddForm && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-2xl shadow-2xl relative overflow-hidden">
+          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-lg shadow-2xl relative">
             <div className="absolute top-0 left-0 w-full h-1 bg-yellow-500" />
             <AddAssetForm 
               onAssetAdded={handleAssetAdded} 

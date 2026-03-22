@@ -71,7 +71,7 @@ const getAssetColor = (name: string, value: number, allData: AllocationData[]) =
   };
 
   const base = palettes[category];
-  
+
   // Specific requested overrides - Force all Bitcoin variants to the same pure orange
   if (n.includes('bitcoin') || n === 'btc' || name === 'Criptomonedas' || name === 'Cripto') {
     return `hsl(${palettes.orange.h}, ${palettes.orange.s}%, ${palettes.orange.l}%)`;
@@ -97,28 +97,52 @@ const renderCustomizedLabel = (props: any) => {
   const cos = Math.cos(-RADIAN * midAngle);
   const sx = cx + outerRadius * cos;
   const sy = cy + outerRadius * sin;
-  const mx = cx + (outerRadius + 8) * cos;
-  const my = cy + (outerRadius + 8) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 10;
+  const mx = cx + (outerRadius + 1) * cos;
+  const my = cy + (outerRadius + 1) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 4;
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
   
   if (percent < 0.02) return null;
 
-  const truncatedName = name.length > 14 ? `${name.substring(0, 12)}...` : name;
+  const isPrint = typeof window !== 'undefined' && window.matchMedia('print').matches;
+  const limit = isPrint ? 10 : 15;
+  const truncatedName = name.length > limit ? `${name.substring(0, limit - 2)}...` : name;
 
   return (
     <g>
-      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke="#313136" fill="none" strokeWidth={1} />
-      <circle cx={ex} cy={ey} r={1.5} fill="#71717a" />
-      <text x={ex + (cos >= 0 ? 8 : -8)} y={ey} dy={4} textAnchor={textAnchor} fill="#a1a1aa" fontSize={9} className="font-bold font-plus-jakarta tracking-wider uppercase">
+      <path 
+        d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} 
+        stroke={isPrint || props.isPrinting ? "#000000" : "#313136"} 
+        fill="none" 
+        strokeWidth={isPrint || props.isPrinting ? 2 : 1} 
+      />
+      <circle cx={ex} cy={ey} r={1.5} fill={isPrint || props.isPrinting ? "#000000" : "#71717a"} />
+      <text 
+        x={ex + (cos >= 0 ? 4 : -4)} 
+        y={ey} 
+        dy={4} 
+        textAnchor={textAnchor} 
+        fill={isPrint || props.isPrinting ? "#000000" : "#a1a1aa"} 
+        fontSize={isPrint || props.isPrinting ? 12 : 9} 
+        fontWeight={isPrint || props.isPrinting ? "900" : "normal"}
+        className="font-bold font-plus-jakarta tracking-wider uppercase"
+      >
         {`${truncatedName} • ${value.toFixed(1)}%`}
       </text>
     </g>
   );
 };
 
-export function PerformanceChart({ data, height = 350 }: { data: PerformanceData[], height?: number }) {
+export function PerformanceChart({ 
+  data, 
+  height = 350,
+  colors
+}: { 
+  data: PerformanceData[], 
+  height?: number,
+  colors?: any 
+}) {
   const chartData = data.map(d => ({
     time: d.date,
     value: d.value
@@ -130,37 +154,52 @@ export function PerformanceChart({ data, height = 350 }: { data: PerformanceData
   }));
 
   return (
-    <div className="w-full mt-0 bg-[#09090b] rounded-xl border border-white/5 overflow-hidden">
+    <div className="w-full mt-0 bg-transparent rounded-xl overflow-hidden">
       <TradingViewChart 
         data={chartData} 
         benchmarkData={benchmarkData}
         height={height}
+        colors={colors}
       />
     </div>
   );
 }
 
-export function AssetAllocationChart({ data }: { data: AllocationData[] }) {
+export function AssetAllocationChart({ 
+  data,
+  outerRadius = 110,
+  innerRadius = 0,
+  isPrinting = false
+}: { 
+  data: AllocationData[],
+  outerRadius?: number,
+  innerRadius?: number,
+  isPrinting?: boolean
+}) {
   const activeData = data.map((entry, index) => ({
     ...entry,
     originalIndex: index
   }));
 
+  const isPrint = (typeof window !== 'undefined' && window.matchMedia('print').matches) || isPrinting;
+
   return (
-    <div className="h-[450px] w-full">
+    <div className="h-[450px] w-full print:h-[400px] flex justify-center items-center overflow-visible mx-auto">
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart margin={{ top: 20, right: 30, bottom: 20, left: 30 }}>
+        <PieChart 
+          margin={{ top: 20, right: 30, bottom: 20, left: 30 }}
+        >
           <Pie
             data={activeData}
             cx="50%"
             cy="50%"
-            innerRadius={0}
-            outerRadius={110}
+            innerRadius={innerRadius}
+            outerRadius={80} // Consistent larger size
             dataKey="value"
-            animationDuration={600}
-            stroke="#09090b"
-            strokeWidth={2}
-            label={renderCustomizedLabel}
+            isAnimationActive={!isPrint}
+            stroke={isPrint ? "#ffffff" : "#09090b"}
+            strokeWidth={isPrint ? 1 : 2}
+            label={(props) => renderCustomizedLabel({ ...props, isPrinting: isPrint })}
             labelLine={false}
           >
             {activeData.map((entry, index) => (
@@ -171,23 +210,26 @@ export function AssetAllocationChart({ data }: { data: AllocationData[] }) {
               />
             ))}
           </Pie>
-          <RechartsTooltip 
-            content={({ active, payload }: any) => {
-              if (active && payload && payload.length) {
-                const item = payload[0].payload;
-                const sliceColor = getAssetColor(item.name, item.value, data);
-                return (
-                  <div className="bg-zinc-900 border border-white/10 px-3 py-2 rounded-lg shadow-lg">
-                    <div className="flex items-center space-x-2">
-                       <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sliceColor }} />
-                       <p className="text-xs font-medium text-zinc-300">{item.name}: <span className="text-white font-bold">{item.value.toFixed(1)}%</span></p>
+          {/* Hide tooltip in print */}
+          {!isPrint && (
+            <RechartsTooltip 
+              content={({ active, payload }: any) => {
+                if (active && payload && payload.length) {
+                  const item = payload[0].payload;
+                  const sliceColor = getAssetColor(item.name, item.value, data);
+                  return (
+                    <div className="bg-zinc-900 border border-white/10 px-3 py-2 rounded-lg shadow-lg">
+                      <div className="flex items-center space-x-2">
+                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sliceColor }} />
+                         <p className="text-xs font-medium text-zinc-300">{item.name}: <span className="text-white font-bold">{item.value.toFixed(1)}%</span></p>
+                      </div>
                     </div>
-                  </div>
-                );
-              }
-              return null;
-            }}
-          />
+                  );
+                }
+                return null;
+              }}
+            />
+          )}
         </PieChart>
       </ResponsiveContainer>
     </div>
