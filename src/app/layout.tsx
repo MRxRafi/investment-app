@@ -13,6 +13,9 @@ const plusJakarta = Plus_Jakarta_Sans({ subsets: ["latin"], variable: "--font-pl
 export const metadata: Metadata = {
   title: "ElPortafolio | Portfolio",
   description: "Clean investment tracking for the modern investor.",
+  icons: {
+    icon: "/logo.png",
+  },
 };
 
 export default function RootLayout({
@@ -52,7 +55,7 @@ export default function RootLayout({
               </div>
               
               <footer className="py-8 px-8 border-t border-white/5 text-center text-zinc-600 text-[10px] font-medium tracking-widest uppercase mt-auto">
-                © {new Date().getFullYear()} ElPortafolio • Industrial Utilitarian v2.0
+                © {new Date().getFullYear()} ElPortafolio
               </footer>
             </main>
           </div>

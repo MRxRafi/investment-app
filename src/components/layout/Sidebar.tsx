@@ -11,14 +11,13 @@ export function Sidebar() {
   return (
     <aside className="w-72 border-r border-white/5 bg-zinc-950 flex-col py-10 px-8 space-y-12 hidden lg:flex h-screen sticky top-0">
       <div className="flex items-center space-x-3 px-2">
-        <div className="w-10 h-10 rounded-xl bg-yellow-500 flex items-center justify-center font-black text-black text-xs shadow-[0_0_20px_rgba(250,204,21,0.2)] border-2 border-black/10">
-          NB
+        <div className="w-10 h-10 rounded-xl bg-zinc-900/50 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+          <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
         </div>
         <div className="flex flex-col">
           <span className="text-xl font-black font-outfit tracking-tighter text-white leading-none">
             El<span className="text-yellow-500">Portafolio</span>
           </span>
-          <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.2em] mt-1 font-plus-jakarta">Investment OS</span>
         </div>
       </div>
       
@@ -50,12 +49,6 @@ export function Sidebar() {
         />
       </nav>
 
-      <div className="pt-8 border-t border-white/5 px-3">
-        <div className="flex items-center text-[9px] text-zinc-500 font-bold uppercase tracking-[0.25em] font-plus-jakarta">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-3 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse" />
-          Neural Link Active
-        </div>
-      </div>
     </aside>
   );
 }

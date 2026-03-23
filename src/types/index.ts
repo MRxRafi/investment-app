@@ -34,12 +34,12 @@ export interface DashboardStats {
   totalPnLPercent: number;
   liquidity: number;
   allocation: { name: string; value: number }[];
-  assetAllocation: { name: string; value: number }[];
+  assetAllocation: { name: string; value: number; type?: string }[];
   performanceData: PerformancePoint[];
   bestAsset: AssetStats | null;
   topPositions: AssetStats[];
   allPositions: AssetStats[];
-  allAssetAllocation: { name: string; value: number }[];
+  allAssetAllocation: { name: string; value: number; type?: string }[];
 }
 
 export interface PerformancePoint {

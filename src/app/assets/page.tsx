@@ -6,6 +6,7 @@ import { AddAssetForm } from '@/components/assets/AddAssetForm';
 import { TrendingUp, TrendingDown, Loader2, Plus, ArrowUpRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { getPrice } from '@/lib/yahoo';
 
 interface AssetStats {
   id: string;
@@ -55,8 +56,7 @@ export default function AssetsPage() {
         let currentPrice = 0;
         if (asset.ticker && asset.ticker !== '---') {
           try {
-            const res = await fetch(`/api/price?ticker=${asset.ticker}`);
-            const data = await res.json();
+            const data = await getPrice(asset.ticker);
             if (data && typeof data.price === 'number') {
               currentPrice = data.price;
             }

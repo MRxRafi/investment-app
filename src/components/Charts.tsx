@@ -10,6 +10,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { TradingViewChart } from './TradingViewChart';
+import { cn } from '@/lib/utils';
 
 interface PerformanceData {
   date: string;
@@ -20,47 +21,39 @@ interface PerformanceData {
 interface AllocationData {
   name: string;
   value: number;
+  type?: string;
 }
 
 const getAssetColor = (name: string, value: number, allData: AllocationData[]) => {
   const n = name.toLowerCase();
+  const itemData = allData.find(d => d.name === name);
+  const type = itemData?.type?.toLowerCase() || '';
   
   // Categorize
   let category = 'blue'; // Default to Blue for general funds
-  if (n.includes('it') || n.includes('technology') || n.includes('tech') || n.includes('quantum')) {
-    category = 'red';
-  } else if (n.includes('bitcoin') || n.includes('btc') || n.includes('eth') || n.includes('crypto') || n.includes('cripto')) {
+
+  // Crypto check (both by type and by name/ticker)
+  if (type === 'criptomonedas' || type === 'crypto' || n.includes('bitcoin') || n.includes('btc') || n.includes('eth') || n.includes('crypto')) {
     category = 'orange';
-  } else if (n.includes('gold') || n.includes('oro')) {
-    category = 'yellow';
-  } else if (n.includes('acciones') || n.includes('stocks') || n.includes('equity') || n.includes('action') || n.includes('amazon') || n.includes('apple') || n.includes('alphabet')) {
+  } 
+  // Stocks check
+  else if (type === 'acciones' || type === 'stocks' || type === 'action' || n.includes('amazon') || n.includes('apple') || n.includes('alphabet')) {
     category = 'purple';
-  } else if (n.includes('cash') || n.includes('efectivo') || n.includes('liquid')) {
+  }
+  // Tech/IT check
+  else if (n.includes('it') || n.includes('technology') || n.includes('tech') || n.includes('quantum')) {
+    category = 'red';
+  } 
+  // Gold check
+  else if (n.includes('gold') || n.includes('oro') || type === 'oro' || type === 'materias primas') {
+    category = 'yellow';
+  }
+  // Cash/Liquidity
+  else if (n.includes('cash') || n.includes('efectivo') || n.includes('liquid') || type === 'liquidez') {
     category = 'other';
   }
 
-  // Handle "Por Tipo" mapping
-  if (name === 'Criptomonedas' || name === 'Cripto') category = 'orange';
-  if (name === 'Oro' || name === 'Materias Primas') category = 'yellow';
-  if (name === 'Renta Variable') category = 'blue';
-  if (name === 'Acciones' || name === 'Action') category = 'purple';
-
-  // Get all items in the same category to calculate shading
-  const group = allData.filter(item => {
-    const gn = item.name.toLowerCase();
-    if (category === 'red') return gn.includes('it') || gn.includes('tech') || gn.includes('quantum');
-    if (category === 'blue') return (gn.includes('msci') || gn.includes('world') || gn.includes('robeco') || gn.includes('global') || gn.includes('vanguard') || gn.includes('index')) && !gn.includes('tech');
-    if (category === 'orange') return gn.includes('bitcoin') || gn.includes('btc') || gn.includes('eth') || gn.includes('crypto') || gn.includes('cripto');
-    if (category === 'purple') return gn.includes('action') || gn.includes('accion') || gn.includes('stock') || gn.includes('equity');
-    return false;
-  }).sort((a, b) => b.value - a.value);
-
-  const rank = group.findIndex(item => item.name.toLowerCase() === n);
-  const totalInGroup = group.length || 1;
-  // Intensity: 0 is highest % (darkest/most saturated), 1 is lowest % (lightest)
-  const intensity = totalInGroup > 1 ? (rank / (totalInGroup - 1)) : 0; 
-
-  // Muted "Clean Modern" Palettes (Ligher base to avoid "almost black")
+  // Muted "Clean Modern" Palettes
   const palettes: Record<string, { h: number, s: number, l: number }> = {
     blue: { h: 215, s: 35, l: 55 },   // Muted Sky Blue
     red: { h: 0, s: 35, l: 60 },      // Muted Rose
@@ -72,19 +65,26 @@ const getAssetColor = (name: string, value: number, allData: AllocationData[]) =
 
   const base = palettes[category];
 
-  // Specific requested overrides - Force all Bitcoin variants to the same pure orange
-  if (n.includes('bitcoin') || n === 'btc' || name === 'Criptomonedas' || name === 'Cripto') {
-    return `hsl(${palettes.orange.h}, ${palettes.orange.s}%, ${palettes.orange.l}%)`;
+  // FORCE consistent colors for Stocks (Purple) and Crypto (Orange) as requested
+  if (category === 'orange' || category === 'purple' || category === 'yellow') {
+    return `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
   }
   
-  // Gold should always be the base bright yellow
-  if (n.includes('gold') || n.includes('oro') || name === 'Oro' || name === 'Materias Primas') {
-    return `hsl(${palettes.yellow.h}, ${palettes.yellow.s}%, ${palettes.yellow.l}%)`;
-  }
-  
-  // Shading logic for others
+  // Shading logic for others (Funds/ETF/Tech)
+  // Get all items in the same category to calculate shading
+  const group = allData.filter(item => {
+    const gn = item.name.toLowerCase();
+    const gt = item.type?.toLowerCase() || '';
+    if (category === 'red') return gn.includes('it') || gn.includes('tech') || gn.includes('quantum');
+    if (category === 'blue') return (gn.includes('msci') || gn.includes('world') || gn.includes('robeco') || gn.includes('global') || gn.includes('vanguard') || gn.includes('index')) && !gn.includes('tech');
+    return false;
+  }).sort((a, b) => b.value - a.value);
+
+  const rank = group.findIndex(item => item.name === name);
+  const totalInGroup = group.length || 1;
+  const intensity = totalInGroup > 1 ? (rank / (totalInGroup - 1)) : 0; 
+
   const s = Math.max(10, base.s + (totalInGroup > 1 ? (15 - intensity * 25) : 0));
-  // Limit lightness to 80% to avoid disappearing on white paper
   const l = Math.min(80, base.l + (totalInGroup > 1 ? (-5 + intensity * 20) : 0));
 
   return `hsl(${base.h}, ${s}%, ${l}%)`;
@@ -96,18 +96,18 @@ const renderCustomizedLabel = (props: any) => {
   
   const sin = Math.sin(-RADIAN * midAngle);
   const cos = Math.cos(-RADIAN * midAngle);
-  const sx = cx + (outerRadius + 5) * cos;
-  const sy = cy + (outerRadius + 5) * sin;
-  const mx = cx + (outerRadius + 15) * cos;
-  const my = cy + (outerRadius + 15) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 8;
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 10;
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
   
   if (percent < 0.02) return null;
 
   const isPrint = typeof window !== 'undefined' && window.matchMedia('print').matches;
-  const limit = isPrint ? 13 : 15;
+  const limit = isPrint ? 50 : 15;
   const truncatedName = name.length > limit ? `${name.substring(0, limit - 2)}...` : name;
 
   return (
@@ -126,8 +126,11 @@ const renderCustomizedLabel = (props: any) => {
         textAnchor={textAnchor} 
         fill={isPrint || props.isPrinting ? "#000000" : "#a1a1aa"} 
         fontSize={isPrint || props.isPrinting ? 12 : 9} 
-        fontWeight={isPrint || props.isPrinting ? "900" : "normal"}
-        className="font-bold font-plus-jakarta tracking-wider uppercase"
+        fontWeight={isPrint || props.isPrinting ? "800" : "normal"}
+        className={cn(
+          "font-plus-jakarta tracking-wider uppercase",
+          isPrint || props.isPrinting ? "font-medium" : "font-bold"
+        )}
       >
         {`${truncatedName} • ${value.toFixed(1)}%`}
       </text>
@@ -185,17 +188,17 @@ export function AssetAllocationChart({
   const isPrint = (typeof window !== 'undefined' && window.matchMedia('print').matches) || isPrinting;
 
   return (
-    <div className="h-[450px] w-full print:h-[400px] flex justify-center items-center overflow-visible mx-auto">
+    <div className="h-[450px] w-full print:h-[650px] flex justify-center items-center overflow-visible mx-auto">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart 
           margin={{ top: 20, right: 30, bottom: 20, left: 30 }}
         >
           <Pie
             data={activeData}
-            cx={isPrint ? "75%" : "50%"} // Shift even further right in PDF
+            cx="50%" /* Always center the pie charts */
             cy="50%"
             innerRadius={innerRadius}
-            outerRadius={isPrint ? 80 : 80} // Back to 80 for more space
+            outerRadius={140} 
             dataKey="value"
             isAnimationActive={!isPrint}
             stroke={isPrint ? "#ffffff" : "#09090b"}

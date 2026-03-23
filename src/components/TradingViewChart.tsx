@@ -26,6 +26,8 @@ interface TradingViewChartProps {
         textColor?: string;
         areaTopColor?: string;
         areaBottomColor?: string;
+        gridColor?: string;
+        benchmarkColor?: string;
     };
 }
 
@@ -39,6 +41,8 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         textColor = '#a1a1aa',
         areaTopColor = 'rgba(59, 130, 246, 0.2)',
         areaBottomColor = 'rgba(59, 130, 246, 0.0)',
+        gridColor = 'rgba(255, 255, 255, 0.03)',
+        benchmarkColor = '#52525b',
     } = {},
 }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -66,8 +70,8 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             width: chartContainerRef.current.clientWidth,
             height: height,
             grid: {
-                vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-                horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
+                vertLines: { color: gridColor },
+                horzLines: { color: gridColor },
             },
             rightPriceScale: {
                 borderVisible: false,
@@ -84,12 +88,12 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             },
             crosshair: {
                 vertLine: {
-                    color: 'rgba(255, 255, 255, 0.2)',
+                    color: backgroundColor === '#ffffff' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)',
                     width: 1,
                     style: 2, // Dashed
                 },
                 horzLine: {
-                    color: 'rgba(255, 255, 255, 0.2)',
+                    color: backgroundColor === '#ffffff' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.2)',
                     width: 1,
                     style: 2, // Dashed
                 },
@@ -134,7 +138,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         let benchmarkSeries: ISeriesApi<"Line"> | null = null;
         if (benchmarkData && benchmarkData.length > 0) {
             const bSeries = chart.addSeries(LineSeries, {
-                color: '#52525b',
+                color: benchmarkColor,
                 lineWidth: 1,
                 lineStyle: 2, // Dashed
                 priceFormat: {
@@ -159,7 +163,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, [data, benchmarkData, backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor, height]);
+    }, [data, benchmarkData, backgroundColor, lineColor, textColor, areaTopColor, areaBottomColor, gridColor, benchmarkColor, height]);
 
     return (
         <div 

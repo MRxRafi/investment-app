@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Loader2, X, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
+import { searchTickers, getAssetInfo } from '@/lib/yahoo';
 
 interface AssetInfo {
   ticker: string;
@@ -58,12 +59,9 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
     const timer = setTimeout(async () => {
       if (ticker.length >= 2) {
         try {
-          const res = await fetch(`/api/search?q=${encodeURIComponent(ticker)}`);
-          if (res.ok) {
-            const data = await res.json();
-            setPredictions(data);
-            setShowPredictions(true);
-          }
+          const data = await searchTickers(ticker);
+          setPredictions(data);
+          setShowPredictions(true);
         } catch (err) {
           console.error("Prediction fetch failed", err);
         }
@@ -84,9 +82,8 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
     setSearching(true);
     setAssetInfo(null);
     try {
-      const res = await fetch(`/api/asset-info?ticker=${encodeURIComponent(p.ticker)}`);
-      if (res.ok) {
-        const data = await res.json();
+      const data = await getAssetInfo(p.ticker);
+      if (data) {
         setAssetInfo(data);
       }
     } catch (err) {
@@ -104,9 +101,8 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
     setShowPredictions(false);
     
     try {
-      const res = await fetch(`/api/asset-info?ticker=${encodeURIComponent(ticker)}`);
-      if (!res.ok) throw new Error('Activo no encontrado');
-      const data = await res.json();
+      const data = await getAssetInfo(ticker);
+      if (!data) throw new Error('Activo no encontrado');
       setAssetInfo(data);
     } catch (err: any) {
       setError(err.message || 'Error al buscar el activo');

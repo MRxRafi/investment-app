@@ -15,11 +15,11 @@ export function AllocationSection({ stats }: { stats: DashboardStats }) {
           <div className="flex items-center space-x-6 text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 font-plus-jakarta bg-black/40 px-4 py-2 rounded-lg border border-white/5">
             <div className="flex items-center">
               <div className="w-2 h-2 rounded-full bg-blue-500 mr-3 shadow-[0_0_15px_rgba(59,130,246,0.4)]" />
-              <span>Portfolio</span>
+              <span>Cartera</span>
             </div>
             <div className="flex items-center">
               <div className="w-2 h-2 rounded-full border border-zinc-500 mr-3" />
-              <span>Benchmark</span>
+              <span>MSCI World</span>
             </div>
           </div>
         </div>

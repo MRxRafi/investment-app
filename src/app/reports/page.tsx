@@ -6,11 +6,15 @@ import { supabase } from '@/lib/supabase';
 import { calculateAssetStats, calculateDashboardStats } from '@/lib/finance';
 import { PerformanceChart, AssetAllocationChart } from '@/components/Charts';
 import { 
-  FileText, Download, Printer, Loader2, 
+  FileText, Download, Loader2, 
   Calendar, Briefcase, TrendingUp, AlertCircle,
   Save, History, ArrowLeft, CheckCircle2, Trash2
 } from 'lucide-react';
+import { getPrice, getHistory } from '@/lib/yahoo';
 import { cn } from '@/lib/utils';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import * as htmlToImage from 'html-to-image';
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -72,12 +76,9 @@ export default function ReportsPage() {
       const tickers = Array.from(new Set(assets?.map(a => a.ticker).filter(t => t && t !== '---')));
       await Promise.all((tickers as string[]).map(async (ticker) => {
         try {
-          const res = await fetch(`/api/price?ticker=${encodeURIComponent(ticker)}`);
-          if (res.ok) {
-            const priceData = await res.json();
-            if (priceData && typeof priceData.price === 'number') {
-              priceMap[ticker] = priceData.price;
-            }
+          const priceData = await getPrice(ticker);
+          if (priceData && typeof priceData.price === 'number') {
+            priceMap[ticker] = priceData.price;
           }
         } catch (e) {
           console.warn(`Price fetch failed for ${ticker} in ReportsPage`);
@@ -99,15 +100,7 @@ export default function ReportsPage() {
         const today = new Date();
         const days = Math.ceil(Math.abs(today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
         
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        const res = await fetch(`/api/history?ticker=IWDA.AS&days=${days}`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        const benchmarkHistory = await res.json();
+        const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
         if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
           const totalValue = assetStats.reduce((acc, s) => acc + s.currentValue, 0);
@@ -119,7 +112,7 @@ export default function ReportsPage() {
           const ratio = targetEndValue !== 0 ? totalValue / targetEndValue : 1;
 
           perfData = benchmarkHistory.map((day: any, index: number) => {
-            const dayGrowth = day.close / firstPrice;
+            const dayGrowth = (day.adjClose || day.close) / firstPrice;
             const progress = index / (benchmarkHistory.length - 1);
             const benchmarkValue = totalInvested * dayGrowth;
             const portfolioValue = benchmarkValue * Math.pow(ratio, progress);
@@ -199,134 +192,101 @@ export default function ReportsPage() {
     }
   };
 
-  // Listen to native print events (Ctrl+P) so we can sync isPrinting state
-  useEffect(() => {
-    const handleBeforePrint = () => setIsPrinting(true);
-    const handleAfterPrint = () => setIsPrinting(false);
-    
-    window.addEventListener('beforeprint', handleBeforePrint);
-    window.addEventListener('afterprint', handleAfterPrint);
-    
-    return () => {
-      window.removeEventListener('beforeprint', handleBeforePrint);
-      window.removeEventListener('afterprint', handleAfterPrint);
-    };
-  }, []);
 
-  const handlePrint = () => {
-    setIsPrinting(true);
-    // Use a small timeout to let the UI re-render with isPrinting=true before the print dialog blocks the thread
-    setTimeout(() => {
-      window.print();
-      // setTimeout to false as well, though afterprint should catch it natively in most modern browsers
-      setIsPrinting(false);
-    }, 150); // increased slightly to give React more time to re-render charts sync
-  };
 
   const handleExportPDF = async () => {
     try {
       setIsGeneratingPDF(true);
-      // Temporarily set isPrinting to true to force B&W/High contrast styles in the HTML we capture
-      setIsPrinting(true);
-      
-      // Give React a frame to re-render
-      await new Promise(resolve => setTimeout(resolve, 300));
-
       if (!reportRef.current) return;
 
-      // Clone the report node to modify it without affecting the live UI
-      const reportClone = reportRef.current.cloneNode(true) as HTMLElement;
-      
-      // Handle Canvases (TradingView Chart): Convert THEM ALL to a single image per container
-      // because lightweight-charts uses multiple canvases for different layers (grid, lines, scale)
-      const chartContainers = reportRef.current.querySelectorAll('.h-\\[300px\\]'); // Targeting the chart containers
-      const cloneChartContainers = reportClone.querySelectorAll('.h-\\[300px\\]');
+      const pdf = new jsPDF('p', 'mm', 'a4', true);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const contentWidth = pdfWidth - (margin * 2);
 
-      chartContainers.forEach((container, containerIdx) => {
-        const canvases = container.querySelectorAll('canvas');
-        if (canvases.length > 0) {
-          // Create a master canvas to merge all layers based on the container size
-          const masterCanvas = document.createElement('canvas');
-          const rect = container.getBoundingClientRect();
-          
-          // Use the device pixel ratio to ensure high quality (optional, but good for charts)
-          const dpr = window.devicePixelRatio || 1;
-          masterCanvas.width = rect.width * dpr;
-          masterCanvas.height = rect.height * dpr;
-          
-          const ctx = masterCanvas.getContext('2d');
-          if (ctx) {
-            ctx.scale(dpr, dpr);
-            
-            canvases.forEach(c => {
-               // Draw each canvas at its precise relative position using coordinates
-               const canvasRect = c.getBoundingClientRect();
-               const x = canvasRect.left - rect.left;
-               const y = canvasRect.top - rect.top;
-               ctx.drawImage(c, x, y, canvasRect.width, canvasRect.height);
-            });
-            
-            const dataUrl = masterCanvas.toDataURL('image/png');
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.style.width = '100%';
-            img.style.height = 'auto';
-            img.style.display = 'block';
-            
-            const cloneContainer = cloneChartContainers[containerIdx];
-            if (cloneContainer) {
-              cloneContainer.innerHTML = ''; 
-              cloneContainer.appendChild(img);
-            }
-          }
+      // Force Print Mode
+      setIsPrinting(true);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      // Backup styles
+      const styleTags = Array.from(document.querySelectorAll('style'));
+      const originalStyles = styleTags.map(s => s.textContent);
+      styleTags.forEach(s => {
+        if (s.textContent?.includes('@media print')) {
+           s.textContent = s.textContent.replace(/@media print/g, '@media all');
         }
       });
 
-      // Wrap the clone in a basic HTML structure and include current document styles
-      const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-        .map(style => style.outerHTML)
-        .join('\n');
+      const sections = ['pdf-section-1', 'pdf-section-2'];
       
-      const fullHtml = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-            ${styles}
-          </head>
-          <body class="bg-white">
-            ${reportClone.outerHTML}
-          </body>
-        </html>
-      `;
-      
-      const response = await fetch('/api/pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          html: fullHtml, 
-          filename: `Reporte_Inversiones_${new Date().toISOString().split('T')[0]}` 
-        }),
-      });
+      for (let i = 0; i < sections.length; i++) {
+        const sectionId = sections[i];
+        const element = document.getElementById(sectionId);
+        if (!element) continue;
 
-      if (!response.ok) throw new Error('Error al generar el PDF');
+        if (i > 0) pdf.addPage();
 
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Reporte_Inversiones_${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
+        // Swap canvases
+        const canvases = Array.from(element.querySelectorAll('canvas'));
+        const replacements: { canvas: HTMLCanvasElement; img: HTMLImageElement; parent: HTMLElement }[] = [];
+
+        canvases.forEach(canvas => {
+          const parent = canvas.parentElement;
+          if (parent) {
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/jpeg', 1.0);
+            img.style.width = canvas.style.width || canvas.offsetWidth + 'px';
+            img.style.height = canvas.style.height || canvas.offsetHeight + 'px';
+            img.style.display = 'block';
+            img.className = canvas.className;
+            parent.replaceChild(img, canvas);
+            replacements.push({ canvas, img, parent });
+          }
+        });
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const dataUrl = await htmlToImage.toJpeg(element, {
+          quality: 1.0,
+          pixelRatio: 2,
+          backgroundColor: '#ffffff',
+          skipFonts: true,
+          width: element.scrollWidth,
+          height: element.scrollHeight,
+          style: { transform: 'none', margin: '0' }
+        });
+
+        // Restore canvases for this section
+        replacements.forEach(r => {
+          if (r.parent.contains(r.img)) r.parent.replaceChild(r.canvas, r.img);
+        });
+
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgHeight = (imgProps.height * contentWidth) / imgProps.width;
+        
+        // Add to page
+        pdf.addImage(dataUrl, 'JPEG', margin, margin, contentWidth, imgHeight, undefined, 'FAST');
+      }
+
+      // Restore styles and state
+      styleTags.forEach((s, i) => { s.textContent = originalStyles[i]; });
+      setIsPrinting(false);
+
+      pdf.save(`Reporte_Inversiones_${new Date().toISOString().split('T')[0]}.pdf`);
     } catch (error) {
       console.error('PDF Export failed:', error);
-      alert('Hubo un error al generar el PDF. Por favor, inténtalo de nuevo.');
+      alert('Error al generar el PDF.');
     } finally {
       setIsGeneratingPDF(false);
-      setIsPrinting(false);
     }
   };
+
+
+
+
+
+
 
   if (loading) {
      return (
@@ -381,13 +341,7 @@ export default function ReportsPage() {
               </button>
             </>
           )}
-          <button 
-            onClick={handlePrint}
-            className="flex-1 sm:flex-none px-6 py-3 bg-zinc-900 border border-white/5 text-white font-black font-outfit text-xs uppercase tracking-widest rounded-xl hover:bg-white/[0.05] transition-all flex items-center justify-center space-x-2"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Imprimir</span>
-          </button>
+
           <button 
             onClick={handleExportPDF}
             disabled={isGeneratingPDF}
@@ -491,13 +445,13 @@ export default function ReportsPage() {
           return (
             <div className="print:block print:w-full">
               {/* PAGE 1: Summary and Charts */}
-              <div className="space-y-16 print:space-y-0 page-break-container">
+              <div id="pdf-section-1" className="space-y-16 print:space-y-0 page-break-container">
                 {/* Report Top Branding */}
                 <div className="flex justify-between items-start border-b border-white/5 pb-12 print:pb-2 print:mb-4 print:border-zinc-100">
                   <div className="space-y-4">
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 bg-yellow-500 rounded-xl flex items-center justify-center font-black text-black text-xs">NB</div>
-                      <h2 className="text-2xl font-black font-outfit uppercase tracking-tighter text-white print:text-black">ElPortafolio</h2>
+                      <h2 className="text-2xl font-black font-outfit uppercase tracking-tighter text-white print:text-black print:font-medium">ElPortafolio</h2>
                     </div>
                     {data.isHistorical && (
                       <div className="inline-flex items-center px-3 py-1 bg-yellow-500/10 border border-yellow-500/20 rounded-full print:hidden">
@@ -506,10 +460,10 @@ export default function ReportsPage() {
                     )}
                   </div>
                   <div className="text-right space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] font-plus-jakarta print:text-zinc-600">
+                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] font-plus-jakarta print:text-zinc-600 print:font-medium">
                       {data.isHistorical ? 'Datos capturados el' : 'Generado el'}
                     </p>
-                    <p className="text-xl font-black font-outfit text-white uppercase italic print:text-black">
+                    <p className="text-xl font-black font-outfit text-white uppercase italic print:text-black print:font-normal">
                       {new Date(data.isHistorical ? data.reportDate : new Date()).toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' })}
                     </p>
                   </div>
@@ -518,32 +472,32 @@ export default function ReportsPage() {
                 {/* Global Stats Grid */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 print:grid-cols-4 print:gap-4 print:border-b print:border-zinc-100 print:pb-8">
                   <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[9px]">Net Worth</p>
-                    <p className="text-3xl font-black font-outfit text-white leading-none print:text-3xl print:text-black print:font-semibold">
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">Net Worth</p>
+                    <p className="text-3xl font-black font-outfit text-white leading-none print:text-2xl print:!text-zinc-800 print:!font-light print:font-sans">
                       {data.stats.totalValue.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[9px]">All-Time P&L</p>
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">All-Time P&L</p>
                     <p className={cn(
-                      "text-3xl font-black font-outfit leading-none print:text-3xl print:font-semibold",
-                      data.stats.totalPnL >= 0 ? "text-emerald-500 transition-none print:text-black" : "text-red-500 transition-none print:text-black"
+                      "text-3xl font-black font-outfit leading-none print:text-2xl print:!font-light print:!text-zinc-800 print:font-sans",
+                      data.stats.totalPnL >= 0 ? "text-emerald-500 transition-none" : "text-red-500 transition-none"
                     )}>
                       {data.stats.totalPnL >= 0 ? "+" : ""}{data.stats.totalPnL.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[9px]">ROI Percent</p>
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">ROI Percent</p>
                     <p className={cn(
-                       "text-3xl font-black font-outfit leading-none print:text-3xl print:font-semibold",
-                       data.stats.totalPnLPercent >= 0 ? "text-emerald-500 transition-none print:text-black" : "text-red-500 transition-none print:text-black"
+                       "text-3xl font-black font-outfit leading-none print:text-2xl print:!font-light print:!text-zinc-800 print:font-sans",
+                       data.stats.totalPnLPercent >= 0 ? "text-emerald-500 transition-none" : "text-red-500 transition-none"
                     )}>
                       {data.stats.totalPnLPercent.toFixed(1)}%
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[9px]">Available Cash</p>
-                    <p className="text-3xl font-black font-outfit text-zinc-300 leading-none print:text-3xl print:text-black print:font-semibold">
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">Available Cash</p>
+                    <p className="text-3xl font-black font-outfit text-zinc-300 leading-none print:text-2xl print:!text-zinc-800 print:!font-light print:font-sans">
                       {data.stats.liquidity.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </p>
                   </div>
@@ -551,36 +505,36 @@ export default function ReportsPage() {
 
                 {/* Performance Evolution Chart */}
                 <div className="space-y-6 print:space-y-2">
-                  <div className="flex items-center space-x-4 print:hidden">
-                     <div className="h-0.5 flex-1 bg-white/5" />
-                     <h3 className="text-xs font-black font-outfit uppercase tracking-[0.3em] text-zinc-500 italic">Portfolio Evolution vs MSCI World</h3>
-                     <div className="h-0.5 flex-1 bg-white/5" />
+                  <div className="flex items-center space-x-4">
+                     <div className="h-0.5 flex-1 bg-white/5 print:bg-zinc-100" />
+                     <h3 className="text-xs font-black font-outfit uppercase tracking-[0.3em] text-zinc-500 italic print:text-black print:font-medium print:not-italic">Portfolio Evolution vs MSCI World</h3>
+                     <div className="h-0.5 flex-1 bg-white/5 print:bg-zinc-100" />
                   </div>
                   <div className="h-[300px] print:h-[240px] print:w-full flex justify-center print:px-6 print:overflow-visible">
                     <PerformanceChart 
                       data={data.stats.performanceData} 
-                      height={isPrint ? 180 : 300}
-                      colors={isPrint ? {
+                      height={(isPrint || isPrinting) ? 180 : 300}
+                      colors={(isPrint || isPrinting) ? {
                         backgroundColor: '#ffffff',
                         lineColor: '#000000',
                         textColor: '#000000',
-                        areaTopColor: '#e0e0e0', // Slightly darker for clear contrast
+                        areaTopColor: '#f8f8f8',
                         areaBottomColor: '#ffffff',
-                        gridColor: '#dddddd',
-                        benchmarkColor: '#444444' // Much darker for B&W distinction
+                        gridColor: '#f0f0f0',
+                        benchmarkColor: '#999999'
                       } : undefined}
                     />
                   </div>
                 </div>
 
                 {/* Allocation Charts - Stacked in print for more space */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 print:grid-cols-1 print:w-full print:gap-0 print:mb-0 print:-mt-20">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 print:grid-cols-1 print:w-full print:gap-0 print:mb-0 print:-mt-28">
                   <div className="h-[350px] print:h-[250px] w-full flex justify-center">
                     <div className="h-[350px] print:h-[250px] w-full flex justify-center">
                       <AssetAllocationChart data={data.stats.allocation} isPrinting={isPrinting} />
                     </div>
                   </div>
-                  <div className="space-y-4 print:space-y-0 text-center flex justify-center print:-mt-12">
+                  <div className="space-y-4 print:space-y-0 text-center flex justify-center print:mt-4">
                     <div className="h-[350px] print:h-[250px] w-full flex justify-center">
                       <AssetAllocationChart data={data.stats.allAssetAllocation} isPrinting={isPrinting} />
                     </div>
@@ -589,7 +543,7 @@ export default function ReportsPage() {
               </div>
 
               {/* PAGE 2: Assets Breakdown */}
-              <div className="space-y-16 print:space-y-0 page-break-before">
+              <div id="pdf-section-2" className="space-y-16 print:space-y-0 page-break-before">
                 <div className="space-y-8 print:pt-4">
                   <div className="flex items-center space-x-4 print:hidden">
                      <div className="h-0.5 flex-1 bg-white/5" />
@@ -611,19 +565,20 @@ export default function ReportsPage() {
                                   <span className="text-[10px] font-black text-yellow-500 uppercase px-1.5 py-0.5 bg-yellow-500/5 border border-yellow-500/10 rounded print:border-zinc-200 print:text-zinc-700">
                                     {s.ticker}
                                   </span>
-                                  <span className="text-sm font-bold text-zinc-100 print:text-xs print:text-black truncate max-w-[150px]">{s.name}</span>
+                                  <span className="text-sm font-bold text-zinc-100 print:text-xs print:text-black print:font-medium truncate max-w-[150px]">{s.name}</span>
                                 </div>
-                                <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-none print:text-[8px] print:text-zinc-500">
+                                <div className="text-[10px] text-zinc-600 font-bold uppercase tracking-widest leading-none print:text-[8px] print:text-zinc-500 print:font-normal">
                                   {((s.currentValue / data.stats.totalValue) * 100).toFixed(1)}% Allocation
                                 </div>
                               </div>
                               <div className="text-right space-y-1">
-                                <p className="text-sm font-black font-outfit text-white print:text-xs print:text-black print:font-semibold">
+                                <p className="text-sm font-black font-outfit text-white print:text-xs print:text-black print:font-medium">
                                   {s.currentValue.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} €
                                 </p>
                                 <p className={cn(
                                   "text-[10px] font-black uppercase tracking-widest",
-                                  s.pnlPercent >= 0 ? "text-emerald-500 print:text-black font-bold" : "text-red-500 print:text-black font-bold"
+                                  s.pnlPercent >= 0 ? "text-emerald-500" : "text-red-500",
+                                  "print:!text-black print:!font-normal"
                                 )}>
                                   {s.pnlPercent >= 0 ? "+" : ""}{s.pnlPercent.toFixed(1)}%
                                 </p>

@@ -45,8 +45,8 @@ export function MobileNav() {
       >
         <div className="flex flex-col h-full space-y-10">
           <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg bg-yellow-400 flex items-center justify-center font-black text-black text-[10px]">
-              NB
+            <div className="w-8 h-8 rounded-lg bg-zinc-900/50 flex items-center justify-center overflow-hidden border border-white/10 shadow-lg">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-cover" />
             </div>
             <span className="text-xl font-bold font-outfit tracking-tight text-white">
               El<span className="text-yellow-400">Portafolio</span>
@@ -80,12 +80,6 @@ export function MobileNav() {
             />
           </nav>
 
-          <div className="pt-6 border-t border-white/5">
-            <div className="flex items-center text-[10px] text-zinc-500 font-bold uppercase tracking-widest">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-              Sync Online
-            </div>
-          </div>
         </div>
       </div>
     </>

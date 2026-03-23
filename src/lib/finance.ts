@@ -78,11 +78,12 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     .filter(s => s.currentValue > 1)
     .map(s => ({
       name: s.name, 
-      value: totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0
+      value: totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0,
+      type: assets.find(a => a.ticker === s.ticker)?.tipo
     }))
     .sort((a, b) => b.value - a.value);
 
-  const assetAllocation = allAssetAllocation.slice(0, 8);
+  const assetAllocation = allAssetAllocation;
 
   const bestAsset = [...assetStats]
     .filter(s => s.currentValue > 1)
