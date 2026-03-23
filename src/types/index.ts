@@ -42,6 +42,9 @@ export interface DashboardStats {
   allAssetAllocation: { name: string; value: number; type?: string }[];
 }
 
+export type TransactionType = 'Buy' | 'Sell' | 'Dividend';
+export type AssetType = 'Stock' | 'Crypto' | 'Etf' | 'Commodity' | 'Other';
+
 export interface PerformancePoint {
   date: string;
   value: number;

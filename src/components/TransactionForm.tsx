@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { AssetType, TransactionType } from '@/types';
+import { TransactionType } from '@/types';
 import { Plus, X, Search, Loader2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
