@@ -73,12 +73,26 @@ export async function getAssetInfo(ticker: string) {
 
 export async function getHistory(ticker: string, period1: Date, period2: Date) {
   try {
-    const result = await yahooFinance.historical(ticker, {
+    const result = await yahooFinance.chart(ticker, {
       period1: period1,
       period2: period2,
       interval: '1d'
     });
-    return result;
+
+    if (!result || !result.quotes) return [];
+
+    // Filter out rows that have null date or close price and map to match historical format
+    return result.quotes
+      .filter((item: any) => item && item.date && item.close !== null && item.close !== undefined)
+      .map((item: any) => ({
+        date: item.date,
+        close: item.close,
+        high: item.high,
+        low: item.low,
+        open: item.open,
+        volume: item.volume,
+        adjClose: item.adjclose || item.close
+      }));
   } catch (error) {
     console.error(`Error fetching history for ${ticker}:`, error);
     return [];

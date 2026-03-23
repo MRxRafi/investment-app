@@ -84,7 +84,8 @@ const getAssetColor = (name: string, value: number, allData: AllocationData[]) =
   
   // Shading logic for others
   const s = Math.max(10, base.s + (totalInGroup > 1 ? (15 - intensity * 25) : 0));
-  const l = base.l + (totalInGroup > 1 ? (-5 + intensity * 20) : 0);
+  // Limit lightness to 80% to avoid disappearing on white paper
+  const l = Math.min(80, base.l + (totalInGroup > 1 ? (-5 + intensity * 20) : 0));
 
   return `hsl(${base.h}, ${s}%, ${l}%)`;
 };
@@ -95,18 +96,18 @@ const renderCustomizedLabel = (props: any) => {
   
   const sin = Math.sin(-RADIAN * midAngle);
   const cos = Math.cos(-RADIAN * midAngle);
-  const sx = cx + outerRadius * cos;
-  const sy = cy + outerRadius * sin;
-  const mx = cx + (outerRadius + 1) * cos;
-  const my = cy + (outerRadius + 1) * sin;
-  const ex = mx + (cos >= 0 ? 1 : -1) * 4;
+  const sx = cx + (outerRadius + 5) * cos;
+  const sy = cy + (outerRadius + 5) * sin;
+  const mx = cx + (outerRadius + 15) * cos;
+  const my = cy + (outerRadius + 15) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 8;
   const ey = my;
   const textAnchor = cos >= 0 ? 'start' : 'end';
   
   if (percent < 0.02) return null;
 
   const isPrint = typeof window !== 'undefined' && window.matchMedia('print').matches;
-  const limit = isPrint ? 10 : 15;
+  const limit = isPrint ? 13 : 15;
   const truncatedName = name.length > limit ? `${name.substring(0, limit - 2)}...` : name;
 
   return (
@@ -191,10 +192,10 @@ export function AssetAllocationChart({
         >
           <Pie
             data={activeData}
-            cx="50%"
+            cx={isPrint ? "75%" : "50%"} // Shift even further right in PDF
             cy="50%"
             innerRadius={innerRadius}
-            outerRadius={80} // Consistent larger size
+            outerRadius={isPrint ? 80 : 80} // Back to 80 for more space
             dataKey="value"
             isAnimationActive={!isPrint}
             stroke={isPrint ? "#ffffff" : "#09090b"}
