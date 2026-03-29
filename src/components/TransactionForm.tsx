@@ -127,6 +127,8 @@ export function TransactionForm({
                 <option value="Buy">Compra</option>
                 <option value="Sell">Venta</option>
                 <option value="Dividend">Dividendo</option>
+                <option value="Deposit">Depósito</option>
+                <option value="Withdrawal">Retirada</option>
               </select>
             </div>
             <div className="space-y-1.5 relative">

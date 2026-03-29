@@ -48,11 +48,27 @@ export default function ReportsPage() {
         
         if (error) throw error;
         
+        // Hotfix for historical reports saved with the old Deuda pricing bug
+        const patchedAssetStats = report.asset_stats.map((s: any) => {
+           if (s.ticker === 'DEBT' || s.name === 'Deuda') {
+              return { ...s, currentValue: s.invested, currentPrice: 1.0 };
+           }
+           return s;
+        });
+
+        const patchedAllPositions = report.stats?.allPositions?.map((s: any) => {
+           if (s.ticker === 'DEBT' || s.name === 'Deuda') {
+              return { ...s, currentValue: s.invested, currentPrice: 1.0 };
+           }
+           return s;
+        });
+
         setData({
           assets: [], // We don't need raw assets for report view if we have stats
-          assetStats: report.asset_stats,
+          assetStats: patchedAssetStats,
           stats: {
              ...report.stats,
+             allPositions: patchedAllPositions || report.stats?.allPositions,
              performanceData: report.performance_data
           },
           isHistorical: true,
@@ -103,8 +119,9 @@ export default function ReportsPage() {
         const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
         if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-          const totalValue = assetStats.reduce((acc, s) => acc + s.currentValue, 0);
-          const totalInvested = assetStats.reduce((acc, s) => acc + s.invested, 0);
+          const activeStatsForChart = assetStats.filter((s: any) => s.ticker !== 'CAPITAL');
+          const totalValue = activeStatsForChart.reduce((acc, s) => acc + s.currentValue, 0);
+          const totalInvested = activeStatsForChart.reduce((acc, s) => acc + s.invested, 0);
           const firstPrice = benchmarkHistory[0]?.close || 1;
           const lastPrice = benchmarkHistory[benchmarkHistory.length - 1]?.close || 1;
           const totalGrowth = lastPrice / firstPrice;
@@ -150,7 +167,7 @@ export default function ReportsPage() {
         total_value: data.stats.totalValue,
         total_pnl: data.stats.totalPnL,
         roi_pct: data.stats.totalPnLPercent,
-        cash: data.stats.liquidity,
+        cash: data.stats.capitalInicial ?? data.stats.liquidity ?? 0,
         asset_stats: data.assetStats,
         performance_data: data.stats.performanceData,
         stats: data.stats
@@ -437,7 +454,7 @@ export default function ReportsPage() {
       >
         {(() => {
           const isPrint = typeof window !== 'undefined' && window.matchMedia('print').matches;
-          const activeAssets = data.assetStats.filter((s: any) => s.currentValue > 0);
+          const activeAssets = data.stats?.allPositions || data.assetStats.filter((s: any) => Math.abs(s.currentValue) > 0.01);
           const mid = Math.ceil(activeAssets.length / 2);
           const leftColumn = activeAssets.slice(0, mid);
           const rightColumn = activeAssets.slice(mid);
@@ -496,9 +513,9 @@ export default function ReportsPage() {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">Available Cash</p>
+                    <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em] font-plus-jakarta italic print:text-[12px] print:!font-bold print:!text-black print:not-italic">Capital Inicial</p>
                     <p className="text-3xl font-black font-outfit text-zinc-300 leading-none print:text-2xl print:!text-zinc-800 print:!font-light print:font-sans">
-                      {data.stats.liquidity.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+                      {(data.stats.capitalInicial ?? data.stats.liquidity ?? 0).toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
                     </p>
                   </div>
                 </div>

@@ -20,9 +20,9 @@ export function StatsGrid({ stats }: { stats: DashboardStats }) {
         icon={<TrendingUp className="w-5 h-5 text-emerald-500/50" />}
       />
       <SummaryCard
-        title="Liquidez"
-        value={stats.liquidity.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
-        change={`${((stats.liquidity / stats.totalValue) * 100).toFixed(1)}%`}
+        title="Capital Inicial"
+        value={stats.capitalInicial.toLocaleString('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}
+        change={`${((stats.capitalInicial / stats.totalValue) * 100).toFixed(1)}%`}
         trend="neutral"
         icon={<PieChart className="w-5 h-5 text-zinc-500/50" />}
       />

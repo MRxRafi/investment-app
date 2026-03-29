@@ -46,7 +46,7 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
       if (!error && data) {
         const unique = Array.from(new Set(data.map(item => item.tipo)));
         // Default standard ones if not present
-        const standard = ["Acciones", "ETF", "Fondos", "Cripto", "Liquidez"];
+        const standard = ["Acciones", "ETF", "Fondos", "Cripto", "Deuda"];
         const combined = Array.from(new Set([...standard, ...unique]));
         setCategories(combined.sort());
       }

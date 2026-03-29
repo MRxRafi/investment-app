@@ -55,8 +55,9 @@ export function DashboardClient() {
           const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
           if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-            const totalValue = assetStats.reduce((acc, s) => acc + s.currentValue, 0);
-            const totalInvested = assetStats.reduce((acc, s) => acc + s.invested, 0);
+            const activeStats = assetStats.filter(s => s.ticker !== 'CAPITAL');
+            const totalValue = activeStats.reduce((acc, s) => acc + s.currentValue, 0);
+            const totalInvested = activeStats.reduce((acc, s) => acc + s.invested, 0);
             const firstPrice = benchmarkHistory[0]?.close || 1;
             const lastPrice = benchmarkHistory[benchmarkHistory.length - 1]?.close || 1;
 

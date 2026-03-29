@@ -9,11 +9,11 @@ export interface Asset {
 export interface Transaction {
   id: string;
   asset_id: string;
-  transaction_type: 'Buy' | 'Sell';
+  transaction_type: TransactionType;
   quantity: number;
   price_per_unit: number;
   fee: number;
-  date: string;
+  transaction_date: string;
 }
 
 export interface AssetStats {
@@ -32,7 +32,7 @@ export interface DashboardStats {
   totalInvested: number;
   totalPnL: number;
   totalPnLPercent: number;
-  liquidity: number;
+  capitalInicial: number;
   allocation: { name: string; value: number }[];
   assetAllocation: { name: string; value: number; type?: string }[];
   performanceData: PerformancePoint[];
@@ -42,7 +42,7 @@ export interface DashboardStats {
   allAssetAllocation: { name: string; value: number; type?: string }[];
 }
 
-export type TransactionType = 'Buy' | 'Sell' | 'Dividend';
+export type TransactionType = 'Buy' | 'Sell' | 'Dividend' | 'Deposit' | 'Withdrawal';
 export type AssetType = 'Stock' | 'Crypto' | 'Etf' | 'Commodity' | 'Other';
 
 export interface PerformancePoint {

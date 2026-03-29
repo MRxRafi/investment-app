@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Asset, Transaction } from '@/types';
 import { AddAssetForm } from '@/components/assets/AddAssetForm';
-import { TrendingUp, TrendingDown, Loader2, Plus, ArrowUpRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, Loader2, Plus, ArrowUpRight, Edit2, Trash2, AlertTriangle, XCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { getPrice } from '@/lib/yahoo';
@@ -21,6 +21,11 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<AssetStats[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<AssetStats | null>(null);
+  const [editName, setEditName] = useState("");
+  const [deletingAsset, setDeletingAsset] = useState<AssetStats | null>(null);
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -53,15 +58,17 @@ export default function AssetsPage() {
           }
         });
 
-        let currentPrice = 0;
-        if (asset.ticker && asset.ticker !== '---') {
+        const isStaticValue = asset.tipo === 'Capital' || asset.tipo === 'Deuda';
+        let currentPrice = isStaticValue ? 1.0 : Number(asset.current_price || 0);
+
+        if (!isStaticValue && asset.ticker && asset.ticker !== '---') {
           try {
             const data = await getPrice(asset.ticker);
             if (data && typeof data.price === 'number') {
               currentPrice = data.price;
             }
           } catch (e) {
-            console.warn(`Price fetch failed for ${asset.ticker}`);
+            console.warn(`Price fetch failed for ${asset.ticker}, using DB fallback.`);
           }
         }
 
@@ -88,6 +95,7 @@ export default function AssetsPage() {
         .sort((a, b) => b.value - a.value);
 
       setAssets(finalAssets);
+      setAllTransactions(transactions);
     } catch (error) {
       console.error('Error fetching assets data:', error);
     } finally {
@@ -102,6 +110,46 @@ export default function AssetsPage() {
   const handleAssetAdded = () => {
     setShowAddForm(false);
     fetchData();
+  };
+
+  const handleEdit = (asset: AssetStats) => {
+    setEditingAsset(asset);
+    setEditName(asset.name);
+  };
+
+  const saveEdit = async () => {
+    if (!editingAsset) return;
+    try {
+      const { error } = await supabase
+        .from('assets')
+        .update({ name: editName })
+        .eq('id', editingAsset.id);
+      if (error) throw error;
+      setEditingAsset(null);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      alert("Error al actualizar el nombre");
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingAsset) return;
+    try {
+      setIsDeleting(true);
+      const { error } = await supabase
+        .from('assets')
+        .delete()
+        .eq('id', deletingAsset.id);
+      if (error) throw error;
+      setDeletingAsset(null);
+      fetchData();
+    } catch (e) {
+      console.error(e);
+      alert("Error al eliminar el activo");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -189,6 +237,22 @@ export default function AssetsPage() {
                   </div>
                 </div>
               </div>
+              <div className="flex justify-between items-center pt-4 border-t border-white/5">
+                <div className="flex space-x-2">
+                  <button 
+                    onClick={() => handleEdit(asset)}
+                    className="p-2 bg-white/5 rounded-lg text-zinc-400 hover:text-white transition-all border border-white/5"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setDeletingAsset(asset)}
+                    className="p-2 bg-red-500/5 rounded-lg text-zinc-500 hover:text-red-500 transition-all border border-red-500/10"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
@@ -202,6 +266,7 @@ export default function AssetsPage() {
                 <th className="px-8 py-6 text-right">Peso</th>
                 <th className="px-8 py-6 text-right">Valorización Total</th>
                 <th className="px-8 py-6 text-right">P&L Histórico</th>
+                <th className="px-8 py-6 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
@@ -244,11 +309,27 @@ export default function AssetsPage() {
                       <span>{Math.abs(asset.return).toFixed(1)}%</span>
                     </div>
                   </td>
+                  <td className="px-8 py-6 text-right">
+                    <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleEdit(asset)}
+                        className="p-2 hover:bg-white/5 rounded-lg text-zinc-500 hover:text-white transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => setDeletingAsset(asset)}
+                        className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-500 hover:text-red-500 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {assets.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-20 text-center">
+                  <td colSpan={5} className="p-20 text-center">
                     <p className="text-zinc-600 font-bold text-sm uppercase tracking-widest font-plus-jakarta animate-pulse">No active positions detected in Sector 7.</p>
                   </td>
                 </tr>
@@ -257,6 +338,98 @@ export default function AssetsPage() {
           </table>
         </div>
       </div>
+
+      {/* Edit Modal */}
+      {editingAsset && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-zinc-950 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-yellow-500" />
+            <div className="p-8 space-y-6">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black font-outfit text-white uppercase italic tracking-tight">Editar <span className="text-yellow-500">Activo</span></h3>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest font-plus-jakarta italic">{editingAsset.ticker}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.2em]">Nombre del Activo</label>
+                <input 
+                  type="text" 
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full bg-zinc-900 border border-white/5 rounded-2xl px-5 py-4 text-white font-bold focus:outline-none focus:ring-2 focus:ring-yellow-500/40 transition-all placeholder:text-zinc-700"
+                />
+              </div>
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  onClick={() => setEditingAsset(null)}
+                  className="flex-1 px-6 py-4 bg-zinc-900 text-zinc-400 font-black font-outfit text-xs uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={saveEdit}
+                  className="flex-1 px-6 py-4 bg-yellow-500 text-black font-black font-outfit text-xs uppercase tracking-widest rounded-xl hover:bg-yellow-400 transition-all shadow-[0_0_20px_rgba(250,204,21,0.2)]"
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingAsset && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[110] flex items-center justify-center p-4 animate-in fade-in duration-300">
+          <div className="bg-zinc-950 border border-red-500/20 rounded-3xl w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-500" />
+            <div className="p-8 space-y-6">
+              <div className="flex items-center space-x-4 text-red-500 mb-2">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="space-y-0.5">
+                  <h3 className="text-xl font-black font-outfit uppercase italic tracking-tight">Zona Peligrosa</h3>
+                  <p className="text-[10px] font-bold uppercase tracking-widest opacity-60">Confirmar Eliminación</p>
+                </div>
+              </div>
+
+              <p className="text-zinc-400 text-sm font-medium font-plus-jakarta leading-relaxed">
+                Estás a punto de eliminar <span className="text-white font-black">{deletingAsset.name}</span>. ¿Estás seguro de que deseas proceder?
+              </p>
+
+              {allTransactions.filter(t => t.asset_id === deletingAsset.id).length > 0 && (
+                <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 space-y-1.5 animate-pulse">
+                  <div className="flex items-center space-x-2 text-red-400">
+                    <XCircle className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Advertencia de Seguridad</span>
+                  </div>
+                  <p className="text-[11px] font-bold text-red-500/80 leading-snug">
+                    Se han detectado <span className="font-black underline">{allTransactions.filter(t => t.asset_id === deletingAsset.id).length} transacciones</span> asociadas. Al eliminar el activo, todo su historial de trading será borrado permanentemente.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-2">
+                <button 
+                  onClick={() => setDeletingAsset(null)}
+                  disabled={isDeleting}
+                  className="flex-1 px-6 py-4 bg-zinc-900 text-zinc-400 font-black font-outfit text-xs uppercase tracking-widest rounded-xl hover:bg-zinc-800 transition-all border border-white/5 disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={confirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 px-6 py-4 bg-red-500 text-white font-black font-outfit text-xs uppercase tracking-widest rounded-xl hover:bg-red-600 transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)] disabled:opacity-50 flex items-center justify-center space-x-2"
+                >
+                  {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Eliminar Activo</span>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }

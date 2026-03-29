@@ -198,7 +198,7 @@ export function AssetAllocationChart({
             cx="50%" /* Always center the pie charts */
             cy="50%"
             innerRadius={innerRadius}
-            outerRadius={140} 
+            outerRadius={outerRadius} 
             dataKey="value"
             isAnimationActive={!isPrint}
             stroke={isPrint ? "#ffffff" : "#09090b"}
