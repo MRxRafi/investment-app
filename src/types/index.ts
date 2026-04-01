@@ -37,7 +37,7 @@ export interface DashboardStats {
   totalPnL: number;
   totalPnLPercent: number;
   capitalInicial: number;
-  allocation: { name: string; value: number }[];
+  allocation: { name: string; value: number; category?: string }[];
   assetAllocation: { name: string; value: number; category?: string }[];
   performanceData: PerformancePoint[];
   bestAsset: AssetStats | null;

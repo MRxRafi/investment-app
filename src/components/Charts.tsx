@@ -24,10 +24,19 @@ interface AllocationData {
   category?: string;
 }
 
-const getAssetColor = (name: string, value: number, allData: AllocationData[]) => {
+const getAssetColor = (name: string, value: number, allData: AllocationData[], categoryColors: Record<string, string> = {}) => {
   const n = name.toLowerCase();
   const itemData = allData.find(d => d.name === name);
   const categoryStr = itemData?.category || '';
+
+  if (categoryColors[categoryStr]) {
+    return categoryColors[categoryStr];
+  }
+  
+  // Fallback: if name matches a category (common in Asset Mix charts)
+  if (itemData?.name && categoryColors[itemData.name]) {
+    return categoryColors[itemData.name];
+  }
   
   // 1. Quantum check (Special case for red)
   const isQuantum = n.includes('quantum');
@@ -174,12 +183,14 @@ export function AssetAllocationChart({
   data = [],
   outerRadius = 110,
   innerRadius = 0,
-  isPrinting = false
+  isPrinting = false,
+  categoryColors = {}
 }: { 
   data?: AllocationData[],
   outerRadius?: number,
   innerRadius?: number,
-  isPrinting?: boolean
+  isPrinting?: boolean,
+  categoryColors?: Record<string, string>
 }) {
   const activeData = data.map((entry, index) => ({
     ...entry,
@@ -210,7 +221,7 @@ export function AssetAllocationChart({
             {activeData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={getAssetColor(entry.name, entry.value, data)} 
+                fill={getAssetColor(entry.name, entry.value, data, categoryColors)} 
                 className="outline-none hover:opacity-90 cursor-pointer"
               />
             ))}
@@ -221,7 +232,7 @@ export function AssetAllocationChart({
               content={({ active, payload }: any) => {
                 if (active && payload && payload.length) {
                   const item = payload[0].payload;
-                  const sliceColor = getAssetColor(item.name, item.value, data);
+                  const sliceColor = getAssetColor(item.name, item.value, data, categoryColors);
                   return (
                     <div className="bg-zinc-900 border border-white/10 px-3 py-2 rounded-lg shadow-lg">
                       <div className="flex items-center space-x-2">

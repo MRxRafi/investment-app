@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 import { getPrice } from '@/lib/yahoo';
 import { calculateAssetStats } from '@/lib/finance';
+import { useCategoryColors } from '@/hooks/useCategoryColors';
 
 interface AssetStats {
   id: string;
@@ -33,6 +34,7 @@ export default function AssetsPage() {
   const [deletingAsset, setDeletingAsset] = useState<AssetStats | null>(null);
   const [allTransactions, setAllTransactions] = useState<any[]>([]);
   const [isDeleting, setIsDeleting] = useState(false);
+  const { colors: categoryColors, updateColor } = useCategoryColors();
 
   const fetchCategories = async () => {
     try {
@@ -217,6 +219,13 @@ export default function AssetsPage() {
         .update({ category: trimmed })
         .eq('category', oldName);
       if (error) throw error;
+
+      // Sincronizar el color (renombrar la clave si existe)
+      const { data: colorData } = await supabase.from('category_colors').select('color').eq('category', oldName).maybeSingle();
+      if (colorData) {
+        await supabase.from('category_colors').insert({ category: trimmed, color: colorData.color });
+        await supabase.from('category_colors').delete().eq('category', oldName);
+      }
       // Actualizar estado local inmediatamente
       const newCategories = categories.map(c => c === oldName ? trimmed : c).sort();
       setCategories(newCategories);
@@ -267,6 +276,9 @@ export default function AssetsPage() {
         }
         console.log("Activos actualizados exitosamente");
       }
+
+      // Eliminar el color de la categoría si existía
+      await supabase.from('category_colors').delete().eq('category', category);
       
       // Actualizar lista local
       const newCategories = categories.filter(c => c !== category);
@@ -650,6 +662,13 @@ export default function AssetsPage() {
                 {categories.map((cat) => (
                   <div key={cat} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-all group">
                     <div className="flex items-center space-x-3">
+                      <input 
+                        type="color" 
+                        value={categoryColors[cat] || "#8a8a99"} 
+                        onChange={(e) => updateColor(cat, e.target.value)}
+                        className="w-6 h-6 rounded cursor-pointer border-0 p-0" 
+                        title={`Color para ${cat}`}
+                      />
                       <span className="text-sm font-bold text-white">{cat}</span>
                       {standardCategories.includes(cat) && (
                         <span className="text-[8px] font-black text-zinc-600 uppercase tracking-widest bg-zinc-800 px-2 py-0.5 rounded">Estándar</span>

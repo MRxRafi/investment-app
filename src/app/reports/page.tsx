@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import * as htmlToImage from 'html-to-image';
+import { useCategoryColors } from '@/hooks/useCategoryColors';
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,7 @@ export default function ReportsPage() {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const { colors: categoryColors } = useCategoryColors();
 
   const fetchReports = async () => {
     const { data } = await supabase
@@ -576,14 +578,12 @@ export default function ReportsPage() {
 
                 {/* Allocation Charts - Stacked in print for more space */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 print:grid-cols-1 print:w-full print:gap-0 print:mb-0 print:-mt-28">
-                  <div className="h-[350px] print:h-[250px] w-full flex justify-center">
                     <div className="h-[350px] print:h-[250px] w-full flex justify-center">
-                      <AssetAllocationChart data={data.stats.allocation} isPrinting={isPrinting} />
+                      <AssetAllocationChart data={data.stats.allocation} isPrinting={isPrinting} categoryColors={categoryColors} />
                     </div>
-                  </div>
                   <div className="space-y-4 print:space-y-0 text-center flex justify-center print:mt-4">
                     <div className="h-[350px] print:h-[250px] w-full flex justify-center">
-                      <AssetAllocationChart data={data.stats.allAssetAllocation} isPrinting={isPrinting} />
+                      <AssetAllocationChart data={data.stats.allAssetAllocation} isPrinting={isPrinting} categoryColors={categoryColors} />
                     </div>
                   </div>
                 </div>

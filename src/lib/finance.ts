@@ -94,7 +94,8 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
   const allocation = Object.entries(tipoTotals)
     .map(([name, value]) => ({
       name,
-      value: chartTotalValue > 0 ? Number(((value / chartTotalValue) * 100).toFixed(1)) : 0
+      value: chartTotalValue > 0 ? Number(((value / chartTotalValue) * 100).toFixed(1)) : 0,
+      category: name // For color mapping, the name is the category here
     }))
     .sort((a, b) => b.value - a.value);
 

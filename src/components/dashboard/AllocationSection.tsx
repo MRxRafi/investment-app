@@ -1,7 +1,7 @@
 import { AssetAllocationChart, PerformanceChart } from "../Charts";
 import { DashboardStats } from "@/types";
 
-export function AllocationSection({ stats }: { stats: DashboardStats }) {
+export function AllocationSection({ stats, categoryColors = {} }: { stats: DashboardStats, categoryColors?: Record<string, string> }) {
   return (
     <div className="space-y-8 animate-slide-up [animation-delay:200ms]">
       {/* 1. Full-Width Performance Evolution */}
@@ -39,7 +39,7 @@ export function AllocationSection({ stats }: { stats: DashboardStats }) {
             <p className="text-[10px] text-zinc-500 font-bold tracking-[0.2em] uppercase font-plus-jakarta">Exposure by Category</p>
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <AssetAllocationChart data={stats.allocation} />
+            <AssetAllocationChart data={stats.allocation} categoryColors={categoryColors} />
           </div>
         </div>
 
@@ -52,7 +52,7 @@ export function AllocationSection({ stats }: { stats: DashboardStats }) {
             <p className="text-[10px] text-zinc-500 font-bold tracking-[0.2em] uppercase font-plus-jakarta">Top Holdings Distribution</p>
           </div>
           <div className="flex-1 flex items-center justify-center">
-            <AssetAllocationChart data={stats.assetAllocation} />
+            <AssetAllocationChart data={stats.assetAllocation} categoryColors={categoryColors} />
           </div>
         </div>
       </div>

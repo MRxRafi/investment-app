@@ -10,10 +10,12 @@ import { calculateAssetStats, calculateDashboardStats } from "@/lib/finance";
 import { Loader2 } from "lucide-react";
 import { useAssets } from "@/hooks/useAssets";
 import { useTransactions } from "@/hooks/useTransactions";
+import { useCategoryColors } from "@/hooks/useCategoryColors";
 
 export function DashboardClient() {
   const { assets, loading: assetsLoading } = useAssets();
   const { transactions, loading: txLoading } = useTransactions();
+  const { colors: categoryColors } = useCategoryColors();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [pricing, setPricing] = useState(false);
 
@@ -107,7 +109,7 @@ export function DashboardClient() {
     <div className="section-container space-y-10 animate-fade-in py-6">
       <StatsGrid stats={stats} />
       <div className="space-y-10">
-        <AllocationSection stats={stats} />
+        <AllocationSection stats={stats} categoryColors={categoryColors} />
         <TopPositions positions={stats.topPositions} />
       </div>
     </div>
