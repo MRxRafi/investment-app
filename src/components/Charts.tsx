@@ -21,73 +21,74 @@ interface PerformanceData {
 interface AllocationData {
   name: string;
   value: number;
-  type?: string;
+  category?: string;
 }
 
 const getAssetColor = (name: string, value: number, allData: AllocationData[]) => {
   const n = name.toLowerCase();
   const itemData = allData.find(d => d.name === name);
-  const type = itemData?.type?.toLowerCase() || '';
+  const categoryStr = itemData?.category || '';
   
-  // Categorize
-  let category = 'blue'; // Default to Blue for general funds
+  // 1. Quantum check (Special case for red)
+  const isQuantum = n.includes('quantum');
 
-  // Crypto check (both by type and by name/ticker)
-  if (type === 'criptomonedas' || type === 'crypto' || n.includes('bitcoin') || n.includes('btc') || n.includes('eth') || n.includes('crypto')) {
-    category = 'orange';
-  } 
-  // Stocks check
-  else if (type === 'acciones' || type === 'stocks' || type === 'action' || n.includes('amazon') || n.includes('apple') || n.includes('alphabet')) {
-    category = 'purple';
-  }
-  // Tech/IT check
-  else if (n.includes('it') || n.includes('technology') || n.includes('tech') || n.includes('quantum')) {
-    category = 'red';
-  } 
-  // Gold check
-  else if (n.includes('gold') || n.includes('oro') || type === 'oro' || type === 'materias primas') {
-    category = 'yellow';
-  }
-  // Cash/Liquidity
-  else if (n.includes('cash') || n.includes('efectivo') || n.includes('liquid') || type === 'liquidez') {
-    category = 'other';
+  // Categorize based on the new English categories
+  let colorCategory = 'blue'; 
+
+  if (categoryStr === 'Crypto') {
+    colorCategory = 'orange';
+  } else if (categoryStr === 'Stock' || n.includes('action')) {
+    colorCategory = 'purple';
+  } else if (isQuantum || categoryStr === 'IT') {
+    colorCategory = 'red';
+  } else if (categoryStr === 'Commodity' || n.includes('gold') || n.includes('oro')) {
+    colorCategory = 'yellow';
+  } else if (categoryStr === 'Liquidity') {
+    colorCategory = 'other';
+  } else if (categoryStr === 'Fund') {
+    colorCategory = 'blue';
   }
 
   // Muted "Clean Modern" Palettes
   const palettes: Record<string, { h: number, s: number, l: number }> = {
     blue: { h: 215, s: 35, l: 55 },   // Muted Sky Blue
-    red: { h: 0, s: 35, l: 60 },      // Muted Rose
+    red: { h: 0, s: 35, l: 60 },      // Muted Rose (Base for IT)
     orange: { h: 25, s: 50, l: 55 },  // More pronounced Orange
     yellow: { h: 48, s: 70, l: 60 },  // Brighter, more saturated Yellow
-    purple: { h: 265, s: 25, l: 60 }, // Muted Lavender
+    purple: { h: 265, s: 35, l: 60 }, // Muted Lavender (Slightly more saturated for "Action")
     other: { h: 240, s: 10, l: 60 }   // Soft Zinc
   };
 
-  const base = palettes[category];
+  const base = palettes[colorCategory];
 
-  // FORCE consistent colors for Stocks (Purple) and Crypto (Orange) as requested
-  if (category === 'orange' || category === 'purple' || category === 'yellow') {
+  // Quantum specific: LIGHTER RED
+  if (isQuantum) {
+    return `hsl(${base.h}, ${base.s}%, 75%)`; 
+  }
+
+  // FORCE consistent colors for Crypto (Orange), Stocks (Purple), etc.
+  if (colorCategory === 'orange' || colorCategory === 'purple' || colorCategory === 'yellow') {
     return `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
   }
   
-  // Shading logic for others (Funds/ETF/Tech)
-  // Get all items in the same category to calculate shading
-  const group = allData.filter(item => {
-    const gn = item.name.toLowerCase();
-    const gt = item.type?.toLowerCase() || '';
-    if (category === 'red') return gn.includes('it') || gn.includes('tech') || gn.includes('quantum');
-    if (category === 'blue') return (gn.includes('msci') || gn.includes('world') || gn.includes('robeco') || gn.includes('global') || gn.includes('vanguard') || gn.includes('index')) && !gn.includes('tech');
-    return false;
-  }).sort((a, b) => b.value - a.value);
+  // Shading logic for Funds (Blue) - Darker for higher %, lighter for lower
+  if (colorCategory === 'blue') {
+    const group = allData.filter(item => item.category === 'Fund')
+      .sort((a, b) => b.value - a.value);
 
-  const rank = group.findIndex(item => item.name === name);
-  const totalInGroup = group.length || 1;
-  const intensity = totalInGroup > 1 ? (rank / (totalInGroup - 1)) : 0; 
+    const rank = group.findIndex(item => item.name === name);
+    const totalInGroup = group.length || 1;
+    // Higher rank (index 0) = higher value = darker (lower L)
+    // Lower rank = lower value = lighter (higher L)
+    const intensity = totalInGroup > 1 ? (rank / (totalInGroup - 1)) : 0.5; 
 
-  const s = Math.max(10, base.s + (totalInGroup > 1 ? (15 - intensity * 25) : 0));
-  const l = Math.min(80, base.l + (totalInGroup > 1 ? (-5 + intensity * 20) : 0));
+    const s = 45; // Fixed saturation for consistency
+    const l = 35 + (intensity * 40); // 35% (dark) to 75% (light)
 
-  return `hsl(${base.h}, ${s}%, ${l}%)`;
+    return `hsl(${base.h}, ${s}%, ${l}%)`;
+  }
+
+  return `hsl(${base.h}, ${base.s}%, ${base.l}%)`;
 };
 
 const renderCustomizedLabel = (props: any) => {
@@ -139,11 +140,11 @@ const renderCustomizedLabel = (props: any) => {
 };
 
 export function PerformanceChart({ 
-  data, 
+  data = [], 
   height = 350,
   colors
 }: { 
-  data: PerformanceData[], 
+  data?: PerformanceData[], 
   height?: number,
   colors?: any 
 }) {
@@ -170,12 +171,12 @@ export function PerformanceChart({
 }
 
 export function AssetAllocationChart({ 
-  data,
+  data = [],
   outerRadius = 110,
   innerRadius = 0,
   isPrinting = false
 }: { 
-  data: AllocationData[],
+  data?: AllocationData[],
   outerRadius?: number,
   innerRadius?: number,
   isPrinting?: boolean

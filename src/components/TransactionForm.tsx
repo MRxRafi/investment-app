@@ -22,18 +22,18 @@ export function TransactionForm({
   const [assets, setAssets] = useState<Asset[]>([]);
   const [search, setSearch] = useState(transaction?.assets?.ticker || transaction?.assets?.name || '');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(transaction?.assets ? { 
-    id: transaction.asset_id, 
+    id: transaction.assetId || transaction.asset_id, 
     name: transaction.assets.name, 
     ticker: transaction.assets.ticker 
   } : null);
   const [showResults, setShowResults] = useState(false);
 
   const [formData, setFormData] = useState({
-    type: transaction?.transaction_type || 'Buy' as TransactionType,
+    type: transaction?.type || 'Buy' as TransactionType,
     quantity: transaction?.quantity || '',
-    price: transaction?.price_per_unit || '',
+    price: transaction?.pricePerUnit || transaction?.price_per_unit || '',
     fee: transaction?.fee || '0',
-    date: transaction?.transaction_date ? new Date(transaction.transaction_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    date: transaction?.date ? new Date(transaction.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => {
@@ -69,11 +69,11 @@ export function TransactionForm({
       setLoading(true);
       const payload = {
         asset_id: selectedAsset.id,
-        transaction_type: formData.type,
+        type: formData.type,
         quantity: parseFloat(formData.quantity.toString()),
         price_per_unit: parseFloat(formData.price.toString()),
         fee: parseFloat(formData.fee.toString()),
-        transaction_date: formData.date,
+        date: formData.date,
         currency: 'EUR' // Default to EUR for now
       };
 

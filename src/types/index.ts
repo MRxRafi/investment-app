@@ -2,18 +2,22 @@ export interface Asset {
   id: string;
   name: string;
   ticker: string;
-  current_price?: number;
-  tipo: string;
+  currentPrice?: number;
+  category: string;
 }
 
 export interface Transaction {
   id: string;
-  asset_id: string;
-  transaction_type: TransactionType;
+  assetId: string;
+  type: TransactionType;
   quantity: number;
-  price_per_unit: number;
+  pricePerUnit: number;
   fee: number;
-  transaction_date: string;
+  date: string;
+  assets?: {
+    name: string;
+    ticker: string;
+  };
 }
 
 export interface AssetStats {
@@ -34,12 +38,12 @@ export interface DashboardStats {
   totalPnLPercent: number;
   capitalInicial: number;
   allocation: { name: string; value: number }[];
-  assetAllocation: { name: string; value: number; type?: string }[];
+  assetAllocation: { name: string; value: number; category?: string }[];
   performanceData: PerformancePoint[];
   bestAsset: AssetStats | null;
   topPositions: AssetStats[];
   allPositions: AssetStats[];
-  allAssetAllocation: { name: string; value: number; type?: string }[];
+  allAssetAllocation: { name: string; value: number; category?: string }[];
 }
 
 export type TransactionType = 'Buy' | 'Sell' | 'Dividend' | 'Deposit' | 'Withdrawal';

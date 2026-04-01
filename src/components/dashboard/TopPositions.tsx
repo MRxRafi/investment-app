@@ -15,7 +15,6 @@ export function TopPositions({ positions }: { positions: AssetStats[] }) {
           <thead>
             <tr className="text-xs text-zinc-500 uppercase tracking-widest border-b border-white/5">
               <th className="pb-4 pt-1 font-semibold pl-1 pr-4">Activo</th>
-              <th className="pb-4 pt-1 font-semibold text-right px-4 hidden lg:table-cell">Invertido</th>
               <th className="pb-4 pt-1 font-semibold text-right px-4 hidden sm:table-cell">Valor actual</th>
               <th className="pb-4 pt-1 font-semibold text-right pr-1 pl-4">Retorno</th>
             </tr>
@@ -26,7 +25,6 @@ export function TopPositions({ positions }: { positions: AssetStats[] }) {
                 key={idx}
                 name={pos.name} 
                 ticker={pos.ticker} 
-                invested={pos.invested.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
                 current={pos.currentValue.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })} 
                 pnl={`${pos.pnlPercent > 0 ? '+' : ''}${pos.pnlPercent.toFixed(1)}%`} 
                 isPositive={pos.pnl >= 0}
@@ -39,10 +37,9 @@ export function TopPositions({ positions }: { positions: AssetStats[] }) {
   );
 }
 
-function AssetRow({ name, ticker, invested, current, pnl, isPositive }: { 
+function AssetRow({ name, ticker, current, pnl, isPositive }: { 
   name: string; 
   ticker: string; 
-  invested: string; 
   current: string; 
   pnl: string; 
   isPositive: boolean;
@@ -53,7 +50,6 @@ function AssetRow({ name, ticker, invested, current, pnl, isPositive }: {
         <div className="font-medium text-zinc-100 group-hover:text-white transition-colors truncate" title={name}>{name}</div>
         <div className="text-xs text-zinc-500 font-mono tracking-tighter uppercase">{ticker}</div>
       </td>
-      <td className="py-4 px-4 text-right text-zinc-400 font-mono text-sm hidden lg:table-cell">{invested}</td>
       <td className="py-4 px-4 text-right text-zinc-100 font-bold font-mono text-sm hidden sm:table-cell">{current}</td>
       <td className="py-4 pr-1 pl-4 text-right">
         <span className={`${isPositive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'} text-xs px-2.5 py-1 rounded-full font-bold shadow-sm inline-block min-w-[50px] whitespace-nowrap`}>

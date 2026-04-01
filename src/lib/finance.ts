@@ -4,40 +4,40 @@ export function calculateAssetStats(assets: Asset[], transactions: Transaction[]
   // Pre-group transactions by asset_id for O(1) lookup during mapping
   const txByAsset = new Map<string, Transaction[]>();
   transactions.forEach(t => {
-    if (!txByAsset.has(t.asset_id)) txByAsset.set(t.asset_id, []);
-    txByAsset.get(t.asset_id)!.push(t);
+    if (!txByAsset.has(t.assetId)) txByAsset.set(t.assetId, []);
+    txByAsset.get(t.assetId)!.push(t);
   });
 
   return assets.map(asset => {
     const assetTx = txByAsset.get(asset.id) || [];
-    
+
     let qty = 0;
     let invested = 0;
-    
+
     assetTx.forEach(t => {
       const q = Number(t.quantity);
-      const p = Number(t.price_per_unit);
+      const p = Number(t.pricePerUnit);
       const f = Number(t.fee || 0);
-      
-      if (t.transaction_type === 'Buy' || t.transaction_type === 'Deposit') {
+
+      if (t.type === 'Buy' || t.type === 'Deposit') {
         qty += q;
         invested += (q * p) + f;
-      } else if (t.transaction_type === 'Sell' || t.transaction_type === 'Withdrawal') {
+      } else if (t.type === 'Sell' || t.type === 'Withdrawal') {
         qty -= q;
         invested -= (q * p) - f;
-      } else if (t.transaction_type === 'Dividend') {
+      } else if (t.type === 'Dividend') {
         // Dividends reduce the net invested amount in the asset (cash coming back)
-        invested -= (q * p); 
+        invested -= (q * p);
       }
     });
 
-    const isStaticValue = asset.tipo === 'Capital' || asset.tipo === 'Deuda';
-    const currentPrice = isStaticValue ? 1.0 : (currentPrices[asset.ticker] || Number(asset.current_price || 0));
-    
+    const isStaticValue = asset.category === 'Capital' || asset.category === 'Debt' || asset.category === 'Deuda';
+    const currentPrice = isStaticValue ? 1.0 : (currentPrices[asset.ticker] || Number(asset.currentPrice || 0));
+
     // For Static assets like Cash/Debt, their value is strictly the net cash flow (invested)
     // because users might input a transaction of qty=1, price=-5000 instead of qty=-5000, price=1.
     const currentValue = isStaticValue ? invested : qty * currentPrice;
-    
+
     // For regular assets, PnL is Value - Invested
     // For Static assets like Cash/Debt, PnL is 0
     const pnl = isStaticValue ? 0 : currentValue - invested;
@@ -57,54 +57,53 @@ export function calculateAssetStats(assets: Asset[], transactions: Transaction[]
 }
 
 export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[], performanceData: PerformancePoint[]): DashboardStats {
-  const cashAssets = assets.filter(a => a.tipo === 'Capital');
-  const nonCashStats = assetStats.filter(s => !cashAssets.some(ca => ca.ticker === s.ticker));
-  
-  // New Capital Inicial is strictly the sum of all invested funds across non-capital assets (including Debt)
-  const capitalInicial = nonCashStats.reduce((acc, s) => acc + s.invested, 0);
+  const cashAssets = assets.filter(a => a.category === 'Capital');
+  const nonCashStats = assetStats.filter(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    return a && a.category !== 'Capital';
+  });
 
-  // Total Value includes ONLY non-capital assets (Rest of portfolio + Debt)
+  // Total Value includes Debt
   const totalValue = nonCashStats.reduce((acc, s) => acc + s.currentValue, 0);
-  
-  // Total Invested is the capital Inicial
+  const capitalInicial = nonCashStats.reduce((acc, s) => acc + s.invested, 0);
   const totalInvested = capitalInicial;
-  
   const totalPnL = totalValue - totalInvested;
   const totalPnLPercent = totalInvested !== 0 ? (totalPnL / totalInvested) * 100 : 0;
 
-  // We exclude Capital Inicial from allocations completely, since it's just the base accounting reference.
-  const adjustedAssetStats = assetStats.map(s => {
-    if (cashAssets.some(ca => ca.ticker === s.ticker)) {
-      return { ...s, currentValue: capitalInicial, invested: capitalInicial };
-    }
-    return s;
-  }).filter(s => !cashAssets.some(ca => ca.ticker === s.ticker)); // Exclude from lists
+  // adjustedAssetStats excludes the "Capital" asset itself from composition lists
+  const adjustedAssetStats = assetStats.filter(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    return a && a.category !== 'Capital';
+  });
 
-  // Allocation by Tipo
+  // 4b. Filter for Charts (Exclude Debt and Capital)
+  const chartStats = adjustedAssetStats.filter(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    return a && a.category !== 'Debt' && a.category !== 'Capital';
+  });
+  const chartTotalValue = chartStats.reduce((acc, s) => acc + s.currentValue, 0);
+
+  // Allocation by Tipo (Category)
   const tipoTotals: Record<string, number> = {};
-  assets.forEach(a => {
-    // Only include in chart if it exists in adjustedAssetStats (which excludes Capital)
-    const s = adjustedAssetStats.find(stat => stat.ticker === a.ticker);
-    if (s) {
-      const key = a.tipo || 'Otros';
-      tipoTotals[key] = (tipoTotals[key] || 0) + s.currentValue;
-    }
+  chartStats.forEach(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    const key = a?.category || 'Otros';
+    tipoTotals[key] = (tipoTotals[key] || 0) + s.currentValue;
   });
 
   const allocation = Object.entries(tipoTotals)
-    .map(([name, value]) => ({ 
-      name, 
-      value: totalValue > 0 ? Number(((value / totalValue) * 100).toFixed(1)) : 0 
+    .map(([name, value]) => ({
+      name,
+      value: chartTotalValue > 0 ? Number(((value / chartTotalValue) * 100).toFixed(1)) : 0
     }))
     .sort((a, b) => b.value - a.value);
 
   // Allocation by Asset (Individual)
-  const allAssetAllocation = adjustedAssetStats
-    .filter(s => Math.abs(s.currentValue) > 0.01)
+  const assetAllocation = chartStats
     .map(s => ({
-      name: s.name, 
-      value: totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0,
-      type: assets.find(a => a.ticker === s.ticker)?.tipo
+      name: s.name,
+      value: chartTotalValue > 0 ? Number(((s.currentValue / chartTotalValue) * 100).toFixed(1)) : 0,
+      category: assets.find(a => a.ticker === s.ticker)?.category
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -112,17 +111,17 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     .filter(s => s.currentValue > 1)
     .sort((a, b) => b.pnlPercent - a.pnlPercent)[0] || null;
 
-  // We keep Capital Inicial inside allPositions so it shows up in the table
-  const allPositions = assetStats.map(s => {
-    if (cashAssets.some(ca => ca.ticker === s.ticker)) {
-      return { ...s, currentValue: capitalInicial, invested: capitalInicial };
-    }
-    return s;
-  })
-    .filter(s => Math.abs(s.currentValue) > 0.01) 
-    .sort((a, b) => b.currentValue - a.currentValue);
+  // Filter out Capital and Debt from top positions as requested
+  const topPositions = adjustedAssetStats
+    .filter(s => {
+      const a = assets.find(asset => asset.ticker === s.ticker);
+      const isCapital = s.name.toLowerCase().includes('capital inicial') || a?.category === 'Capital';
+      const isDebt = a?.category === 'Debt';
+      return !isCapital && !isDebt;
+    })
+    .sort((a, b) => b.currentValue - a.currentValue)
+    .slice(0, 8); 
 
-  const topPositions = allPositions.slice(0, 5);
 
   return {
     totalValue,
@@ -131,11 +130,12 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     totalPnLPercent,
     capitalInicial,
     allocation,
-    assetAllocation: allAssetAllocation,
+    assetAllocation,
     performanceData,
     bestAsset,
     topPositions,
-    allPositions,
-    allAssetAllocation
+    allPositions: adjustedAssetStats.filter(s => Math.abs(s.currentValue) > 0.01),
+    allAssetAllocation: assetAllocation.filter(s => Math.abs(s.value) > 0.01)
+
   };
 }

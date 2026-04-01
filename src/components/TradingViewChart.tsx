@@ -32,8 +32,8 @@ interface TradingViewChartProps {
 }
 
 export const TradingViewChart: React.FC<TradingViewChartProps> = ({
-    data,
-    benchmarkData,
+    data = [],
+    benchmarkData = [],
     height = 350,
     colors: {
         backgroundColor = '#09090b',
@@ -52,7 +52,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
     const tooltipRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (!chartContainerRef.current) return;
+        if (!chartContainerRef.current || !data || data.length === 0) return;
 
         const handleResize = () => {
             if (chartRef.current && chartContainerRef.current) {

@@ -1,7 +1,0 @@
-<?xml version='1.0' encoding='utf-8'?>
-<resources>
-    <string name="app_name">ElPortafolio</string>
-    <string name="title_activity_main">ElPortafolio</string>
-    <string name="package_name">com.bimaflen.portafolio</string>
-    <string name="custom_url_scheme">com.bimaflen.portafolio</string>
-</resources>

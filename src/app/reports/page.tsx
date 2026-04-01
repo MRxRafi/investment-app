@@ -48,29 +48,37 @@ export default function ReportsPage() {
         
         if (error) throw error;
         
-        // Hotfix for historical reports saved with the old Deuda pricing bug
-        const patchedAssetStats = report.asset_stats.map((s: any) => {
-           if (s.ticker === 'DEBT' || s.name === 'Deuda') {
+        // Hotfix for historical reports saved with the old naming convention
+        const patchedAssetStats = (report.asset_stats || []).map((s: any) => {
+           if (s.ticker === 'DEBT' || s.name === 'Debt' || s.category === 'Debt') {
               return { ...s, currentValue: s.invested, currentPrice: 1.0 };
            }
            return s;
         });
 
-        const patchedAllPositions = report.stats?.allPositions?.map((s: any) => {
-           if (s.ticker === 'DEBT' || s.name === 'Deuda') {
+        const patchedAllPositions = (report.stats?.allPositions || []).map((s: any) => {
+           if (s.ticker === 'DEBT' || s.name === 'Debt' || s.category === 'Debt') {
               return { ...s, currentValue: s.invested, currentPrice: 1.0 };
            }
            return s;
         });
+
+        const mappedStats = report.stats ? {
+          totalValue: report.stats.totalValue ?? report.stats.total_value ?? 0,
+          totalPnL: report.stats.totalPnL ?? report.stats.total_pnl ?? 0,
+          totalPnLPercent: report.stats.totalPnLPercent ?? report.stats.total_pnl_percent ?? report.stats.roi_pct ?? 0,
+          capitalInicial: report.stats.capitalInicial ?? report.stats.capital_inicial ?? report.stats.cash ?? 0,
+          allocation: report.stats.allocation || [],
+          assetAllocation: report.stats.assetAllocation || [],
+          topPositions: report.stats.topPositions || [],
+          allPositions: patchedAllPositions || report.stats.allPositions || [],
+          performanceData: report.performance_data || report.stats.performanceData || []
+        } : null;
 
         setData({
-          assets: [], // We don't need raw assets for report view if we have stats
-          assetStats: patchedAssetStats,
-          stats: {
-             ...report.stats,
-             allPositions: patchedAllPositions || report.stats?.allPositions,
-             performanceData: report.performance_data
-          },
+          assets: [],
+          assetStats: patchedAssetStats.filter((s: any) => Math.abs(s.currentValue) > 0.01),
+          stats: mappedStats,
           isHistorical: true,
           reportDate: report.report_date
         });
@@ -83,13 +91,13 @@ export default function ReportsPage() {
         supabase.from('transactions').select('*')
       ]);
 
-      const assets = assetsResponse.data;
-      const transactions = transactionsResponse.data;
+      const assets = assetsResponse.data || [];
+      const transactions = transactionsResponse.data || [];
       
       const priceMap: Record<string, number> = {};
       
-      // Fetch fresh prices in parallel like the Dashboard does
-      const tickers = Array.from(new Set(assets?.map(a => a.ticker).filter(t => t && t !== '---')));
+      // Fetch fresh prices in parallel
+      const tickers = Array.from(new Set(assets.map((a: any) => a.ticker).filter((t: any) => t && t !== '---')));
       await Promise.all((tickers as string[]).map(async (ticker) => {
         try {
           const priceData = await getPrice(ticker);
@@ -101,14 +109,26 @@ export default function ReportsPage() {
         }
       }));
 
-      // Fallback to database price if API fails
-      assets?.forEach(a => {
-        if (a.ticker && !priceMap[a.ticker]) {
-          priceMap[a.ticker] = Number(a.current_price || 0);
-        }
-      });
+      // Map DB response to standardized interfaces before calculation
+      const mappedAssets: Asset[] = assets.map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        ticker: a.ticker,
+        currentPrice: priceMap[a.ticker] || Number(a.current_price || 0),
+        category: a.category
+      }));
 
-      const assetStats = calculateAssetStats(assets || [], transactions || [], priceMap);
+      const mappedTransactions: Transaction[] = transactions.map((t: any) => ({
+        id: t.id,
+        assetId: t.asset_id,
+        type: t.type,
+        quantity: Number(t.quantity),
+        pricePerUnit: Number(t.price_per_unit),
+        fee: Number(t.fee || 0),
+        date: t.date
+      }));
+
+      const assetStats = calculateAssetStats(mappedAssets, mappedTransactions, priceMap);
       
       let perfData: any[] = [];
       try {
@@ -144,8 +164,13 @@ export default function ReportsPage() {
         console.warn('History fetch failed or timed out:', e);
       }
 
-      const stats = calculateDashboardStats(assetStats, assets || [], perfData);
-      setData({ assets: assets || [], assetStats, stats, isHistorical: false });
+      const stats = calculateDashboardStats(assetStats, mappedAssets, perfData);
+      setData({ 
+        assets: mappedAssets, 
+        assetStats: assetStats.filter((s: any) => Math.abs(s.currentValue) > 0.01), 
+        stats, 
+        isHistorical: false 
+      });
     } catch (e) {
       console.error('Data fetching error:', e);
     } finally {
@@ -452,9 +477,14 @@ export default function ReportsPage() {
         ref={reportRef} 
         className="report-content bg-black border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl p-8 md:p-16 print:border-none print:shadow-none print:p-0 print:m-0 print:overflow-visible print:bg-white"
       >
-        {(() => {
+        {!data ? (
+          <div className="flex flex-col items-center justify-center py-20 space-y-4">
+             <AlertCircle className="w-12 h-12 text-zinc-700" />
+             <p className="text-zinc-600 font-bold uppercase text-[10px] tracking-widest">No hay datos disponibles para este reporte</p>
+          </div>
+        ) : (() => {
           const isPrint = typeof window !== 'undefined' && window.matchMedia('print').matches;
-          const activeAssets = data.stats?.allPositions || data.assetStats.filter((s: any) => Math.abs(s.currentValue) > 0.01);
+          const activeAssets = (data.stats?.allPositions || data.assetStats.filter((s: any) => Math.abs(s.currentValue) > 0.01)).sort((a: any, b: any) => b.currentValue - a.currentValue);
           const mid = Math.ceil(activeAssets.length / 2);
           const leftColumn = activeAssets.slice(0, mid);
           const rightColumn = activeAssets.slice(mid);

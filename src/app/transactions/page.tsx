@@ -6,55 +6,15 @@ import { Plus, Filter, Download, Loader2, Edit2, Trash2, Calendar, Tag, Layers }
 import { supabase } from '@/lib/supabase';
 import { cn } from '@/lib/utils';
 
-interface Transaction {
-  id: string;
-  transaction_date: string;
-  transaction_type: string;
-  quantity: number;
-  price_per_unit: number;
-  fee: number;
-  currency: string;
-  assets: {
-    name: string;
-    ticker: string;
-  };
-}
+import { Transaction } from '@/types';
+import { useTransactions } from '@/hooks/useTransactions';
 
 export default function TransactionsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { transactions, loading, refetch } = useTransactions();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  async function fetchTransactions() {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('transactions')
-        .select(`
-          *,
-          assets (
-            id,
-            name,
-            ticker
-          )
-        `)
-        .order('transaction_date', { ascending: false });
-
-      if (error) throw error;
-      setTransactions(data || []);
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleDelete(id: string) {
     if (!confirm('¿Estás seguro de que quieres eliminar esta transacción?')) return;
@@ -67,7 +27,7 @@ export default function TransactionsPage() {
         .eq('id', id);
 
       if (error) throw error;
-      setTransactions(transactions.filter(t => t.id !== id));
+      refetch();
     } catch (error) {
       console.error('Error deleting transaction:', error);
       alert('Error al eliminar la transacción');
@@ -133,8 +93,8 @@ export default function TransactionsPage() {
             {/* Mobile View: Transaction Cards */}
             <div className="lg:hidden divide-y divide-white/5">
               {filteredTransactions.map((tx) => {
-                const total = tx.quantity * tx.price_per_unit;
-                const d = new Date(tx.transaction_date);
+                const total = tx.quantity * tx.pricePerUnit;
+                const d = new Date(tx.date);
                 
                 return (
                   <div key={tx.id} className="p-6 space-y-4 hover:bg-white/[0.01] transition-colors group">
@@ -148,9 +108,9 @@ export default function TransactionsPage() {
                           <h4 className="font-black font-outfit text-white tracking-tight uppercase leading-none mb-1 text-sm">{tx.assets?.name}</h4>
                           <span className={cn(
                             "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border",
-                            tx.transaction_type === 'Buy' ? "text-blue-400 border-blue-500/20 bg-blue-500/5" : "text-orange-400 border-orange-500/20 bg-orange-500/5"
+                            tx.type === 'Buy' ? "text-blue-400 border-blue-500/20 bg-blue-500/5" : "text-orange-400 border-orange-500/20 bg-orange-500/5"
                           )}>
-                            {tx.transaction_type}
+                            {tx.type}
                           </span>
                         </div>
                       </div>
@@ -184,7 +144,7 @@ export default function TransactionsPage() {
                       <div className="space-y-1 text-right">
                         <p className="text-[9px] text-zinc-600 font-black uppercase tracking-widest leading-none">Units @ Price</p>
                         <p className="text-[11px] font-bold text-zinc-400 leading-none">
-                          {tx.quantity} <span className="text-zinc-600">x</span> {tx.price_per_unit.toFixed(2)}
+                          {tx.quantity} <span className="text-zinc-600">x</span> {tx.pricePerUnit.toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -209,8 +169,8 @@ export default function TransactionsPage() {
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredTransactions.map((tx) => {
-                    const total = tx.quantity * tx.price_per_unit;
-                    const dateFormatted = new Date(tx.transaction_date).toLocaleDateString('es-ES', { 
+                    const total = tx.quantity * tx.pricePerUnit;
+                    const dateFormatted = new Date(tx.date).toLocaleDateString('es-ES', { 
                       day: '2-digit', 
                       month: 'short', 
                       year: 'numeric' 
@@ -230,18 +190,18 @@ export default function TransactionsPage() {
                         <td className="px-8 py-6 text-center">
                           <span className={cn(
                             "px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest border",
-                            tx.transaction_type === 'Buy' 
+                            tx.type === 'Buy' 
                               ? 'text-blue-400 bg-blue-500/5 border-blue-500/10' 
                               : 'text-orange-400 bg-orange-600/10 border-orange-500/20'
                           )}>
-                            {tx.transaction_type}
+                            {tx.type}
                           </span>
                         </td>
                         <td className="px-8 py-6 text-right text-[13px] font-bold text-zinc-400">
                           {Number(tx.quantity).toLocaleString('es-ES', { maximumFractionDigits: 4 })}
                         </td>
                         <td className="px-8 py-6 text-right text-[13px] font-bold text-zinc-400">
-                          {Number(tx.price_per_unit).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
+                          {Number(tx.pricePerUnit).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
                         </td>
                         <td className="px-8 py-6 text-right font-black font-outfit text-lg text-white">
                           {total.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}
@@ -281,7 +241,7 @@ export default function TransactionsPage() {
         onClose={() => {
           setShowForm(false);
           setEditingTransaction(null);
-          fetchTransactions();
+          refetch();
         }} 
       />}
     </div>

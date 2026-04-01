@@ -29,8 +29,8 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
   const [searching, setSearching] = useState(false);
   const [assetInfo, setAssetInfo] = useState<AssetInfo | null>(null);
   const [categories, setCategories] = useState<string[]>([]);
-  const [tipo, setTipo] = useState('Acciones');
-  const [customTipo, setCustomTipo] = useState('');
+  const [category, setCategory] = useState('Stock');
+  const [customCategory, setCustomCategory] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -40,13 +40,13 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
     const fetchCategories = async () => {
       const { data, error } = await supabase
         .from('assets')
-        .select('tipo')
-        .not('tipo', 'is', null);
+        .select('category')
+        .not('category', 'is', null);
       
       if (!error && data) {
-        const unique = Array.from(new Set(data.map(item => item.tipo)));
+        const unique = Array.from(new Set(data.map(item => (item as any).category)));
         // Default standard ones if not present
-        const standard = ["Acciones", "ETF", "Fondos", "Cripto", "Deuda"];
+        const standard = ["Stock", "ETF", "Fund", "Crypto", "Debt", "Liquidity"];
         const combined = Array.from(new Set([...standard, ...unique]));
         setCategories(combined.sort());
       }
@@ -118,9 +118,9 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
     setLoading(true);
     setError(null);
 
-    const finalTipo = showCustomInput ? customTipo : tipo;
-    if (!finalTipo) {
-      setError("Por favor especifica un tipo para el activo");
+    const finalCategory = showCustomInput ? customCategory : category;
+    if (!finalCategory) {
+      setError("Please specify a category for the asset");
       setLoading(false);
       return;
     }
@@ -131,7 +131,7 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
         .insert([{
           ticker: assetInfo.ticker,
           name: assetInfo.name,
-          tipo: finalTipo,
+          category: finalCategory,
           current_price: assetInfo.price,
           last_price_update: new Date().toISOString()
         }]);
@@ -253,21 +253,21 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
             <div className="space-y-3">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 px-1">Categoría</label>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {categories.map((opt, idx) => (
-                  <button
-                    key={`${opt}-${idx}`}
-                    type="button"
-                    onClick={() => { setTipo(opt); setShowCustomInput(false); }}
-                    className={cn(
-                      "px-3 py-2.5 rounded-xl text-[11px] font-bold border transition-all duration-300",
-                      tipo === opt && !showCustomInput
-                        ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.1)]" 
-                        : "bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-white/10"
-                    )}
-                  >
-                    {opt}
-                  </button>
-                ))}
+                    {categories.map((opt, idx) => (
+                      <button
+                        key={`${opt}-${idx}`}
+                        type="button"
+                        onClick={() => { setCategory(opt); setShowCustomInput(false); }}
+                        className={cn(
+                          "px-3 py-2.5 rounded-xl text-[11px] font-bold border transition-all duration-300",
+                          category === opt && !showCustomInput
+                            ? "bg-white text-black border-white shadow-[0_0_15px_rgba(255,255,255,0.1)]" 
+                            : "bg-zinc-900/50 text-zinc-400 border-white/5 hover:border-white/10"
+                        )}
+                      >
+                        {opt}
+                      </button>
+                    ))}
                 <button
                   type="button"
                   onClick={() => setShowCustomInput(true)}
@@ -283,18 +283,16 @@ export function AddAssetForm({ onAssetAdded, onCancel }: { onAssetAdded: () => v
                 </button>
               </div>
 
-              {showCustomInput && (
                 <div className="mt-2 animate-in slide-in-from-top-1">
                   <input
                     type="text"
-                    value={customTipo}
-                    onChange={(e) => setCustomTipo(e.target.value)}
-                    placeholder="Nueva categoría..."
+                    value={customCategory}
+                    onChange={(e) => setCustomCategory(e.target.value)}
+                    placeholder="New category..."
                     className="w-full bg-zinc-900 border border-blue-500/30 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-1 focus:ring-blue-500/50 transition-all font-bold text-white text-xs"
                     autoFocus
                   />
                 </div>
-              )}
             </div>
 
             <button
