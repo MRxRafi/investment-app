@@ -55,18 +55,26 @@ export function DashboardClient() {
           const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
           if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-            const activeStats = assetStats.filter(s => s.ticker !== 'CAPITAL');
-            const totalValue = activeStats.reduce((acc, s) => acc + s.currentValue, 0);
-            const totalInvested = activeStats.reduce((acc, s) => acc + s.invested, 0);
+            const nonCapitalStats = assetStats.filter(s => {
+              const a = assets.find(asset => asset.ticker === s.ticker);
+              return a && a.category !== 'Capital';
+            });
+            const totalValue = nonCapitalStats.reduce((acc, s) => acc + s.currentValue, 0);
+            
+            const capitalStats = assetStats.filter(s => {
+              const a = assets.find(asset => asset.ticker === s.ticker);
+              return a && a.category === 'Capital';
+            });
+            const capitalInicial = capitalStats.reduce((acc, s) => acc + s.invested, 0);
             const firstPrice = benchmarkHistory[0]?.close || 1;
 
             performanceData = benchmarkHistory.map((day: any, index: number) => {
               const dayGrowth = day.close / firstPrice;
               const progress = index / (benchmarkHistory.length - 1);
-              const benchmarkValue = totalInvested * dayGrowth;
+              const benchmarkValue = capitalInicial * dayGrowth;
               // Simple growth ratio mapping
               const totalGrowth = benchmarkHistory[benchmarkHistory.length - 1].close / firstPrice;
-              const targetEndValue = totalInvested * totalGrowth;
+              const targetEndValue = capitalInicial * totalGrowth;
               const ratio = targetEndValue !== 0 ? totalValue / targetEndValue : 1;
               const portfolioValue = benchmarkValue * Math.pow(ratio, progress);
 

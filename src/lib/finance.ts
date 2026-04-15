@@ -57,24 +57,42 @@ export function calculateAssetStats(assets: Asset[], transactions: Transaction[]
 }
 
 export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[], performanceData: PerformancePoint[]): DashboardStats {
-  const cashAssets = assets.filter(a => a.category === 'Capital');
-  const nonCashStats = assetStats.filter(s => {
+  // 1. Identify Assets by Role
+  const capitalStats = assetStats.filter(s => {
     const a = assets.find(asset => asset.ticker === s.ticker);
-    return a && a.category !== 'Capital';
+    return a && a.category === 'Capital';
   });
 
-  // Total Value includes Debt
-  const totalValue = nonCashStats.reduce((acc, s) => acc + s.currentValue, 0);
-  const capitalInicial = nonCashStats.reduce((acc, s) => acc + s.invested, 0);
-  const totalInvested = capitalInicial;
-  const totalPnL = totalValue - totalInvested;
-  const totalPnLPercent = totalInvested !== 0 ? (totalPnL / totalInvested) * 100 : 0;
+  const debtStats = assetStats.filter(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    return a && (a.category === 'Debt' || a.category === 'Deuda');
+  });
+
+  const marketStats = assetStats.filter(s => {
+    const a = assets.find(asset => asset.ticker === s.ticker);
+    return a && a.category !== 'Capital' && a.category !== 'Debt' && a.category !== 'Deuda';
+  });
+
+  // 2. Calculate Dashboard Summary Stats
+  // Capital Inicial (Manual) represents the Total Deposits/Inflow recorded by the user
+  const capitalInicial = capitalStats.reduce((acc, s) => acc + s.invested, 0);
 
   // adjustedAssetStats excludes the "Capital" asset itself from composition lists
   const adjustedAssetStats = assetStats.filter(s => {
     const a = assets.find(asset => asset.ticker === s.ticker);
     return a && a.category !== 'Capital';
   });
+
+  // Patrimonio Total reflects the sum of all assets + debt (without Capital)
+  const totalValue = adjustedAssetStats.reduce((acc, s) => acc + s.currentValue, 0);
+  // Total Invested is the sum of cash injected into the Non-Capital assets
+  const totalInvested = adjustedAssetStats.reduce((acc, s) => acc + s.invested, 0);
+  
+  // Rentabilidad solicitada: Patrimonio Total - Capital Inicial
+  const totalPnL = totalValue - capitalInicial;
+  
+  // Rendimiento porcentual contra el Capital Inicial (la inyección base de la cartera)
+  const totalPnLPercent = capitalInicial !== 0 ? (totalPnL / capitalInicial) * 100 : 0;
 
   // 4b. Filter for Charts (Exclude Debt and Capital)
   const chartStats = adjustedAssetStats.filter(s => {
@@ -108,7 +126,7 @@ export function calculateDashboardStats(assetStats: AssetStats[], assets: Asset[
     }))
     .sort((a, b) => b.value - a.value);
 
-  const bestAsset = [...nonCashStats]
+  const bestAsset = [...marketStats]
     .filter(s => s.currentValue > 1)
     .sort((a, b) => b.pnlPercent - a.pnlPercent)[0] || null;
 

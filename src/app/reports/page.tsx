@@ -141,19 +141,28 @@ export default function ReportsPage() {
         const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
         if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-          const activeStatsForChart = assetStats.filter((s: any) => s.ticker !== 'CAPITAL');
-          const totalValue = activeStatsForChart.reduce((acc, s) => acc + s.currentValue, 0);
-          const totalInvested = activeStatsForChart.reduce((acc, s) => acc + s.invested, 0);
+          const nonCapitalStats = assetStats.filter((s: any) => {
+            const a = mappedAssets.find(asset => asset.ticker === s.ticker);
+            return a && a.category !== 'Capital';
+          });
+          const totalValue = nonCapitalStats.reduce((acc: number, s: any) => acc + s.currentValue, 0);
+          
+          const capitalStats = assetStats.filter((s: any) => {
+            const a = mappedAssets.find(asset => asset.ticker === s.ticker);
+            return a && a.category === 'Capital';
+          });
+          const capitalInicial = capitalStats.reduce((acc: number, s: any) => acc + s.invested, 0);
+          
           const firstPrice = benchmarkHistory[0]?.close || 1;
           const lastPrice = benchmarkHistory[benchmarkHistory.length - 1]?.close || 1;
           const totalGrowth = lastPrice / firstPrice;
-          const targetEndValue = totalInvested * totalGrowth;
+          const targetEndValue = capitalInicial * totalGrowth;
           const ratio = targetEndValue !== 0 ? totalValue / targetEndValue : 1;
 
           perfData = benchmarkHistory.map((day: any, index: number) => {
             const dayGrowth = (day.adjClose || day.close) / firstPrice;
             const progress = index / (benchmarkHistory.length - 1);
-            const benchmarkValue = totalInvested * dayGrowth;
+            const benchmarkValue = capitalInicial * dayGrowth;
             const portfolioValue = benchmarkValue * Math.pow(ratio, progress);
             return {
               date: new Date(day.date).toISOString().split('T')[0],

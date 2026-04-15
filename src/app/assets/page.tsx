@@ -104,17 +104,22 @@ export default function AssetsPage() {
       }));
 
       const assetStats = calculateAssetStats(rawAssets, mappedTransactions, priceMap);
-      const totalValue = assetStats.reduce((acc, s) => acc + s.currentValue, 0);
+      const totalValue = assetStats.reduce((acc, s) => {
+        const rawAsset = rawAssets.find(ra => ra.ticker === s.ticker && ra.name === s.name);
+        if (rawAsset && rawAsset.category === 'Capital') return acc;
+        return acc + s.currentValue;
+      }, 0);
 
       const finalAssets = assetStats
         .map(s => {
           const rawAsset = rawAssets.find(ra => ra.ticker === s.ticker && ra.name === s.name);
+          const isCapital = rawAsset?.category === 'Capital';
           return {
             id: rawAsset?.id || '',
             name: s.name,
             ticker: s.ticker || '---',
             category: rawAsset?.category || 'Stock',
-            weight: totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0,
+            weight: isCapital ? 0 : (totalValue > 0 ? Number(((s.currentValue / totalValue) * 100).toFixed(1)) : 0),
             value: s.currentValue,
             return: s.pnlPercent
           };
@@ -368,7 +373,9 @@ export default function AssetsPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] text-zinc-600 font-black uppercase tracking-widest mb-1">Peso</p>
-                  <p className="text-sm font-black font-outfit text-yellow-500">{asset.weight}%</p>
+                  <p className="text-sm font-black font-outfit text-yellow-500">
+                    {asset.category === 'Capital' ? '-' : `${asset.weight}%`}
+                  </p>
                 </div>
               </div>
 
@@ -446,7 +453,7 @@ export default function AssetsPage() {
                   </td>
                   <td className="px-8 py-6 text-right">
                     <span className="text-sm font-black font-outfit text-zinc-400 hover:text-yellow-500 transition-colors">
-                      {asset.weight}%
+                      {asset.category === 'Capital' ? '-' : `${asset.weight}%`}
                     </span>
                   </td>
                   <td className="px-8 py-6 text-right">
