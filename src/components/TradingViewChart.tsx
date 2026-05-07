@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef } from 'react';
-import { 
+import {
     createChart,
     ColorType,
-    IChartApi, 
+    IChartApi,
     ISeriesApi,
     Time,
     AreaSeries,
@@ -14,6 +14,8 @@ import {
 interface ChartData {
     time: string; // YYYY-MM-DD
     value: number;
+    absValue?: number;
+    absBenchmark?: number;
 }
 
 interface TradingViewChartProps {
@@ -56,8 +58,8 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
         const handleResize = () => {
             if (chartRef.current && chartContainerRef.current) {
-                chartRef.current.applyOptions({ 
-                    width: chartContainerRef.current.clientWidth 
+                chartRef.current.applyOptions({
+                    width: chartContainerRef.current.clientWidth
                 });
             }
         };
@@ -105,14 +107,19 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
         // Function to prepare data (sort and deduplicate by time)
         const prepareData = (rawData: ChartData[]) => {
-            const uniqueData = new Map<string, number>();
+            const uniqueData = new Map<string, ChartData>();
             rawData.forEach(d => {
                 // If we have multiple points for the same day, take the last one
-                uniqueData.set(d.time, d.value);
+                uniqueData.set(d.time, d);
             });
 
-            return Array.from(uniqueData.entries())
-                .map(([time, value]) => ({ time: time as Time, value }))
+            return Array.from(uniqueData.values())
+                .map((d) => ({
+                    time: d.time as Time,
+                    value: d.value,
+                    absValue: d.absValue,
+                    absBenchmark: d.absBenchmark
+                }))
                 .sort((a, b) => {
                     const timeA = typeof a.time === 'string' ? new Date(a.time).getTime() : (a.time as number);
                     const timeB = typeof b.time === 'string' ? new Date(b.time).getTime() : (b.time as number);
@@ -127,8 +134,8 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
             lineWidth: 2,
             priceFormat: {
                 type: 'price',
-                precision: 0,
-                minMove: 1,
+                precision: 2,
+                minMove: 0.01,
             },
         });
 
@@ -158,18 +165,18 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
         portfolioSeriesRef.current = portfolioSeries;
         benchmarkSeriesRef.current = benchmarkSeries;
 
-        const sortedData = [...data].sort((a,b)=> new Date(a.time).getTime() - new Date(b.time).getTime());
+        const sortedData = [...data].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
         const firstPort = sortedData.length > 0 ? sortedData[0].value : 1;
-        
+
         let firstBench = 1;
         if (benchmarkData && benchmarkData.length > 0) {
-            const sortedB = [...benchmarkData].sort((a,b)=> new Date(a.time).getTime() - new Date(b.time).getTime());
+            const sortedB = [...benchmarkData].sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
             firstBench = sortedB[0].value;
         }
 
         chart.subscribeCrosshairMove(param => {
             if (!tooltipRef.current || !chartContainerRef.current) return;
-            
+
             if (
                 param.point === undefined ||
                 !param.time ||
@@ -182,24 +189,32 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                 return;
             }
 
+            const time = param.time;
+            const timeStr = typeof time === 'string' ? time :
+                (typeof time === 'object' && time !== null ? `${(time as any).year}-${String((time as any).month).padStart(2, '0')}-${String((time as any).day).padStart(2, '0')}` : '');
+
+            const originalPoint = data.find(d => d.time === timeStr);
             const rawPortValue = param.seriesData.get(portfolioSeries) as any;
             const rawBenchValue = benchmarkSeries ? (param.seriesData.get(benchmarkSeries) as any) : undefined;
 
             if (rawPortValue && rawPortValue.value !== undefined) {
                 tooltipRef.current.style.display = 'block';
-                
+
                 const portValue = rawPortValue.value;
+                // Buscar valor absoluto en el punto original o fallback al valor del gráfico
+                const portAbs = originalPoint?.absValue !== undefined ? originalPoint.absValue : portValue;
                 const portPct = firstPort !== 0 ? ((portValue - firstPort) / firstPort) * 100 : 0;
-                
+
                 let bHtml = '';
                 if (rawBenchValue && rawBenchValue.value !== undefined) {
                     const bValue = rawBenchValue.value;
+                    const bAbs = originalPoint?.absBenchmark !== undefined ? originalPoint.absBenchmark : bValue;
                     const bPct = firstBench !== 0 ? ((bValue - firstBench) / firstBench) * 100 : 0;
                     bHtml = `
                         <div style="display: flex; justify-content: space-between; gap: 16px; margin-top: 6px;">
                             <span style="color: ${benchmarkColor}; font-weight: 700;">MSCI World</span>
                             <span style="font-weight: 700; color: white;">
-                                ${bValue.toLocaleString('es-ES', {maximumFractionDigits:0})}€ 
+                                ${bAbs.toLocaleString('es-ES', { maximumFractionDigits: 0 })}€ 
                                 <span style="color: ${bPct >= 0 ? '#34d399' : '#f87171'}; font-size: 11px; margin-left: 4px;">
                                     ${bPct > 0 ? '+' : ''}${bPct.toFixed(2)}%
                                 </span>
@@ -227,7 +242,7 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
                     <div style="display: flex; justify-content: space-between; gap: 16px;">
                         <span style="color: ${lineColor}; font-weight: 700;">Cartera</span>
                         <span style="font-weight: 700; color: white;">
-                            ${portValue.toLocaleString('es-ES', {maximumFractionDigits:0})}€ 
+                            ${portAbs.toLocaleString('es-ES', { maximumFractionDigits: 0 })}€ 
                             <span style="color: ${portPct >= 0 ? '#34d399' : '#f87171'}; font-size: 11px; margin-left: 4px;">
                                 ${portPct > 0 ? '+' : ''}${portPct.toFixed(2)}%
                             </span>
@@ -277,13 +292,13 @@ export const TradingViewChart: React.FC<TradingViewChartProps> = ({
 
     return (
         <div className="relative w-full">
-            <div 
-                ref={chartContainerRef} 
+            <div
+                ref={chartContainerRef}
                 className="w-full relative"
                 style={{ height: `${height}px` }}
             />
             {/* Hover Tooltip Element */}
-            <div 
+            <div
                 ref={tooltipRef}
                 className="absolute z-50 pointer-events-none bg-[#09090b]/90 backdrop-blur-xl px-4 py-3 rounded-2xl border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.5)] font-plus-jakarta text-xs"
                 style={{ display: 'none' }}

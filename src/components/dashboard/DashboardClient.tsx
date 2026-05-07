@@ -6,7 +6,8 @@ import { StatsGrid } from "./StatsGrid";
 import { AllocationSection } from "./AllocationSection";
 import { TopPositions } from "./TopPositions";
 import { getPrice, getHistory } from "@/lib/yahoo";
-import { calculateAssetStats, calculateDashboardStats } from "@/lib/finance";
+import { getSGPrice, getSGHistory, isSGTicker } from "@/lib/sg";
+import { calculateAssetStats, calculateDashboardStats, generatePerformanceData } from "@/lib/finance";
 import { Loader2 } from "lucide-react";
 import { useAssets } from "@/hooks/useAssets";
 import { useTransactions } from "@/hooks/useTransactions";
@@ -29,64 +30,78 @@ export function DashboardClient() {
     async function calculate() {
       try {
         setPricing(true);
-        // 1. Fetch Current Prices in Parallel
+        // 1. Fetch Current Prices and Histories in Parallel
         const tickers = Array.from(new Set(assets.map(a => a.ticker).filter(t => t && t !== '---')));
         const priceMap: Record<string, number> = {};
+        const historyMap: Record<string, any[]> = {};
+
+        // Dynamic start date based on first transaction
+        const startDate = transactions.length > 0
+          ? new Date(Math.min(...transactions.map(t => new Date(t.date).getTime())))
+          : new Date('2025-10-06');
+        const today = new Date();
 
         await Promise.all(tickers.map(async (ticker) => {
           try {
-            const priceData = await getPrice(ticker);
+            const isSG = isSGTicker(ticker);
+            const [priceData, historyData] = await Promise.all([
+              isSG ? getSGPrice(ticker) : getPrice(ticker),
+              isSG ? getSGHistory(ticker) : getHistory(ticker, startDate, today)
+            ]);
+
             if (priceData && typeof priceData.price === 'number') {
               priceMap[ticker] = priceData.price;
             }
+            if (Array.isArray(historyData) && historyData.length > 0) {
+              // Normalize history data format if needed
+              historyMap[ticker] = historyData.map(h => ({
+                date: h.date instanceof Date ? h.date.toISOString().split('T')[0] : h.date,
+                close: h.close
+              }));
+            }
           } catch (e) {
-            console.warn(`Price fetch failed for ${ticker}`);
+            console.warn(`Data fetch failed for ${ticker}`);
           }
         }));
 
         // 2. Calculate Asset Stats
         const assetStats = calculateAssetStats(assets, transactions, priceMap);
 
-        // 3. Fetch History for Benchmark (IWDA.AS)
+        // 3. Fetch History for Benchmark (IWDA.AS) and generate performance
         let performanceData: PerformancePoint[] = [];
         try {
-          const startDate = new Date('2025-10-06');
-          const today = new Date();
-          const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
+          const [benchmarkHistory, benchmarkLive] = await Promise.all([
+            getHistory('IWDA.AS', startDate, today),
+            getPrice('IWDA.AS')
+          ]);
 
           if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-            const nonCapitalStats = assetStats.filter(s => {
-              const a = assets.find(asset => asset.ticker === s.ticker);
-              return a && a.category !== 'Capital';
-            });
-            const totalValue = nonCapitalStats.reduce((acc, s) => acc + s.currentValue, 0);
-            
-            const capitalStats = assetStats.filter(s => {
-              const a = assets.find(asset => asset.ticker === s.ticker);
-              return a && a.category === 'Capital';
-            });
-            const capitalInicial = capitalStats.reduce((acc, s) => acc + s.invested, 0);
-            const firstPrice = benchmarkHistory[0]?.close || 1;
+            // Inject Live Prices into Histories for "Today" points
+            const todayStr = new Date().toISOString().split('T')[0];
 
-            performanceData = benchmarkHistory.map((day: any, index: number) => {
-              const dayGrowth = day.close / firstPrice;
-              const progress = index / (benchmarkHistory.length - 1);
-              const benchmarkValue = capitalInicial * dayGrowth;
-              // Simple growth ratio mapping
-              const totalGrowth = benchmarkHistory[benchmarkHistory.length - 1].close / firstPrice;
-              const targetEndValue = capitalInicial * totalGrowth;
-              const ratio = targetEndValue !== 0 ? totalValue / targetEndValue : 1;
-              const portfolioValue = benchmarkValue * Math.pow(ratio, progress);
-
-              return {
-                date: new Date(day.date).toISOString().split('T')[0],
-                value: Math.round(portfolioValue),
-                benchmark: Math.round(benchmarkValue)
-              };
+            // Inject into Assets
+            Object.keys(historyMap).forEach(ticker => {
+              if (priceMap[ticker] !== undefined) {
+                const history = historyMap[ticker];
+                const lastEntry = history[history.length - 1];
+                if (lastEntry && lastEntry.date !== todayStr) {
+                  history.push({ date: todayStr, close: priceMap[ticker] });
+                }
+              }
             });
+
+            // Inject into Benchmark
+            if (benchmarkLive && typeof benchmarkLive.price === 'number') {
+              const lastB = benchmarkHistory[benchmarkHistory.length - 1];
+              if (lastB && lastB.date !== todayStr) {
+                benchmarkHistory.push({ date: todayStr, close: benchmarkLive.price });
+              }
+            }
+
+            performanceData = generatePerformanceData(assets, transactions, historyMap, benchmarkHistory);
           }
         } catch (e) {
-          console.warn('History fetch failed on client');
+          console.warn('History fetch failed on client', e);
         }
 
         // 4. Calculate Final Dashboard Stats

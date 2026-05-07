@@ -9,13 +9,11 @@ export async function getExchangeRate(from: string, to: string): Promise<number>
     });
 
     if (error || !data?.data) {
-      console.warn(`Could not fetch exchange rate for ${pair}, using 1:`, error);
       return 1;
     }
     
     return data.data.regularMarketPrice || 1;
   } catch (error) {
-    console.warn(`Could not fetch exchange rate for ${pair}, using 1:`, error);
     return 1;
   }
 }
@@ -26,13 +24,10 @@ export async function getPrice(ticker: string) {
       body: { operation: 'price', ticker }
     });
 
-    if (error || !data?.data) {
-      console.warn(`No price data found for ${ticker}`, error);
-      return null;
-    }
+    if (error || !data?.data) return null;
 
     const result = data.data;
-    let price = result.regularMarketPrice;
+    let price = result.price || result.regularMarketPrice;
     const currency = result.currency;
 
     if (currency && currency !== "EUR") {
@@ -44,27 +39,49 @@ export async function getPrice(ticker: string) {
       price,
       currency: "EUR",
       originalCurrency: currency,
-      name: ticker, // Edge Function v5 returns symbol as name for now
+      name: result.name || ticker,
       change: result.regularMarketChange || 0,
       changePercent: result.regularMarketChangePercent || 0
     };
   } catch (error) {
-    console.error(`YAHOO_ERROR for ${ticker}:`, error);
+    console.error(`Error for ${ticker}:`, error);
     return null;
   }
 }
 
-export async function getAssetInfo(ticker: string) {
+export async function searchTickers(query: string, source?: 'yahoo' | 'sg') {
+  if (!query || query.length < 2) return [];
+
   try {
     const { data, error } = await supabase.functions.invoke('get-finance-data', {
-      body: { operation: 'asset-info', ticker }
+      body: { operation: 'search', query, source }
+    });
+
+    if (error || !data?.data?.quotes) return [];
+
+    return data.data.quotes.map((quote: any) => ({
+      ticker: quote.symbol || quote.ticker,
+      name: quote.shortname || quote.longname || quote.name,
+      exchange: quote.exchange,
+      quoteType: quote.quoteType || 'EQUITY'
+    }));
+  } catch (error) {
+    console.error(`Error searching tickers for ${query}:`, error);
+    return [];
+  }
+}
+
+export async function getAssetInfo(ticker: string, source?: 'yahoo' | 'sg'): Promise<any> {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-finance-data', {
+      body: { operation: 'asset-info', ticker, source }
     });
 
     if (error || !data?.data) return null;
 
     const result = data.data;
-    let price = result.price;
-    const currency = result.currency;
+    let price = result.price || result.regularMarketPrice;
+    const currency = result.currency || 'EUR';
 
     if (currency && currency !== "EUR") {
       const rate = await getExchangeRate(currency, "EUR");
@@ -72,12 +89,12 @@ export async function getAssetInfo(ticker: string) {
     }
 
     return {
-      ticker: result.ticker,
-      name: result.name || result.ticker,
+      ticker: result.ticker || result.symbol,
+      name: result.name || result.ticker || result.symbol,
       price: price,
       currency: "EUR",
       exchange: result.exchange,
-      quoteType: "EQUITY" // Defaulting since Chart API lacks this
+      quoteType: result.quoteType || "EQUITY"
     };
   } catch (error) {
     console.error(`Error fetching asset info for ${ticker}:`, error);
@@ -101,7 +118,6 @@ export async function getHistory(ticker: string, period1: Date, period2: Date) {
 
     if (!timestamps.length) return [];
 
-    // Filter out rows that have null date or close price and map to match historical format
     return timestamps.map((ts: number, i: number) => ({
         date: new Date(ts * 1000),
         close: quotes.close[i],
@@ -114,27 +130,6 @@ export async function getHistory(ticker: string, period1: Date, period2: Date) {
 
   } catch (error) {
     console.error(`Error fetching history for ${ticker}:`, error);
-    return [];
-  }
-}
-
-export async function searchTickers(query: string) {
-  try {
-    const { data, error } = await supabase.functions.invoke('get-finance-data', {
-      body: { operation: 'search', query }
-    });
-
-    if (error || !data?.data?.quotes) return [];
-
-    return data.data.quotes.map((quote: any) => ({
-      ticker: quote.symbol,
-      name: quote.longname || quote.shortname || quote.symbol,
-      exchange: quote.exchange,
-      quoteType: quote.quoteType,
-      index: quote.index
-    }));
-  } catch (error) {
-    console.error(`Error searching tickers for ${query}:`, error);
     return [];
   }
 }

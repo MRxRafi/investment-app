@@ -29,6 +29,11 @@ export interface AssetStats {
   currentValue: number;
   pnl: number;
   pnlPercent: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+  unrealizedPnLPercent: number;
+  totalPnL: number;
+  averageCost: number;
 }
 
 export interface DashboardStats {
@@ -51,6 +56,8 @@ export type AssetType = 'Stock' | 'Crypto' | 'Etf' | 'Commodity' | 'Other';
 
 export interface PerformancePoint {
   date: string;
-  value: number;
-  benchmark: number;
+  value: number; // Unitized performance (Base 100)
+  benchmark: number; // Unitized benchmark (Base 100)
+  absValue?: number; // Absolute € value for tooltip
+  absBenchmark?: number; // Absolute € benchmark for tooltip
 }

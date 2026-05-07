@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Asset, Transaction } from '@/types';
 import { supabase } from '@/lib/supabase';
-import { calculateAssetStats, calculateDashboardStats } from '@/lib/finance';
+import { calculateAssetStats, calculateDashboardStats, generatePerformanceData } from '@/lib/finance';
 import { PerformanceChart, AssetAllocationChart } from '@/components/Charts';
 import { 
   FileText, Download, Loader2, 
@@ -11,6 +11,7 @@ import {
   Save, History, ArrowLeft, CheckCircle2, Trash2
 } from 'lucide-react';
 import { getPrice, getHistory } from '@/lib/yahoo';
+import { getSGPrice, getSGHistory, isSGTicker } from '@/lib/sg';
 import { cn } from '@/lib/utils';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -95,19 +96,49 @@ export default function ReportsPage() {
 
       const assets = assetsResponse.data || [];
       const transactions = transactionsResponse.data || [];
+
+      // Map DB response to standardized interfaces before calculation
+      const mappedTransactions: Transaction[] = Array.from(
+        new Map(transactions.map((t: any) => [t.id, t])).values()
+      ).map((t: any) => ({
+        id: t.id,
+        assetId: t.asset_id,
+        type: t.type,
+        quantity: Number(t.quantity),
+        pricePerUnit: Number(t.price_per_unit),
+        fee: Number(t.fee || 0),
+        date: t.date
+      }));
       
       const priceMap: Record<string, number> = {};
       
-      // Fetch fresh prices in parallel
+      // Fetch fresh prices and histories in parallel
       const tickers = Array.from(new Set(assets.map((a: any) => a.ticker).filter((t: any) => t && t !== '---')));
+      const historyMap: Record<string, any[]> = {};
+      
+      // Dynamic start date based on first transaction
+      const startDate = mappedTransactions.length > 0 
+        ? new Date(Math.min(...mappedTransactions.map(t => new Date(t.date).getTime())))
+        : new Date('2025-10-06');
+      
+      const today = new Date();
+
       await Promise.all((tickers as string[]).map(async (ticker) => {
         try {
-          const priceData = await getPrice(ticker);
+          const isSG = isSGTicker(ticker);
+          const [priceData, historyData] = await Promise.all([
+            isSG ? getSGPrice(ticker) : getPrice(ticker),
+            isSG ? getSGHistory(ticker) : getHistory(ticker, startDate, today)
+          ]);
+          
           if (priceData && typeof priceData.price === 'number') {
             priceMap[ticker] = priceData.price;
           }
+          if (Array.isArray(historyData) && historyData.length > 0) {
+            historyMap[ticker] = historyData;
+          }
         } catch (e) {
-          console.warn(`Price fetch failed for ${ticker} in ReportsPage`);
+          console.warn(`Data fetch failed for ${ticker} in ReportsPage`);
         }
       }));
 
@@ -120,56 +151,15 @@ export default function ReportsPage() {
         category: a.category
       }));
 
-      const mappedTransactions: Transaction[] = transactions.map((t: any) => ({
-        id: t.id,
-        assetId: t.asset_id,
-        type: t.type,
-        quantity: Number(t.quantity),
-        pricePerUnit: Number(t.price_per_unit),
-        fee: Number(t.fee || 0),
-        date: t.date
-      }));
 
       const assetStats = calculateAssetStats(mappedAssets, mappedTransactions, priceMap);
       
       let perfData: any[] = [];
       try {
-        const startDate = new Date('2025-10-06');
-        const today = new Date();
-        const days = Math.ceil(Math.abs(today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-        
         const benchmarkHistory = await getHistory('IWDA.AS', startDate, today);
 
         if (Array.isArray(benchmarkHistory) && benchmarkHistory.length > 0) {
-          const nonCapitalStats = assetStats.filter((s: any) => {
-            const a = mappedAssets.find(asset => asset.ticker === s.ticker);
-            return a && a.category !== 'Capital';
-          });
-          const totalValue = nonCapitalStats.reduce((acc: number, s: any) => acc + s.currentValue, 0);
-          
-          const capitalStats = assetStats.filter((s: any) => {
-            const a = mappedAssets.find(asset => asset.ticker === s.ticker);
-            return a && a.category === 'Capital';
-          });
-          const capitalInicial = capitalStats.reduce((acc: number, s: any) => acc + s.invested, 0);
-          
-          const firstPrice = benchmarkHistory[0]?.close || 1;
-          const lastPrice = benchmarkHistory[benchmarkHistory.length - 1]?.close || 1;
-          const totalGrowth = lastPrice / firstPrice;
-          const targetEndValue = capitalInicial * totalGrowth;
-          const ratio = targetEndValue !== 0 ? totalValue / targetEndValue : 1;
-
-          perfData = benchmarkHistory.map((day: any, index: number) => {
-            const dayGrowth = (day.adjClose || day.close) / firstPrice;
-            const progress = index / (benchmarkHistory.length - 1);
-            const benchmarkValue = capitalInicial * dayGrowth;
-            const portfolioValue = benchmarkValue * Math.pow(ratio, progress);
-            return {
-              date: new Date(day.date).toISOString().split('T')[0],
-              value: Math.round(portfolioValue),
-              benchmark: Math.round(benchmarkValue)
-            };
-          });
+          perfData = generatePerformanceData(mappedAssets, mappedTransactions, historyMap, benchmarkHistory);
         }
       } catch (e) {
         console.warn('History fetch failed or timed out:', e);

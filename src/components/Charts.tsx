@@ -16,6 +16,8 @@ interface PerformanceData {
   date: string;
   value: number;
   benchmark: number;
+  absValue?: number;
+  absBenchmark?: number;
 }
 
 interface AllocationData {
@@ -159,12 +161,15 @@ export function PerformanceChart({
 }) {
   const chartData = data.map(d => ({
     time: d.date,
-    value: d.value
+    value: d.value,
+    absValue: d.absValue,
+    absBenchmark: d.absBenchmark
   }));
 
   const benchmarkData = data.map(d => ({
     time: d.date,
-    value: d.benchmark
+    value: d.benchmark,
+    absBenchmark: d.absBenchmark
   }));
 
   return (
